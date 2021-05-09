@@ -17,5 +17,9 @@ find_package(fmt REQUIRED)
 
 set(HMP_COMMON_LIBS onnx glog::glog fmt::fmt)
 
+file(GLOB HMP_LIB_SRC src/*.cpp)
+add_library(hmp STATIC ${HMP_LIB_SRC})
+target_link_libraries(hmp ${HMP_COMMON_LIBS})
+
 add_executable(model_info src/bin/model_info.cpp)
-target_link_libraries(model_info ${HMP_COMMON_LIBS})
+target_link_libraries(model_info hmp)
