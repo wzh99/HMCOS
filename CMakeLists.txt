@@ -17,7 +17,10 @@ find_package(fmt REQUIRED)
 
 set(HOS_COMMON_LIBS onnx glog::glog fmt::fmt)
 
-file(GLOB HOS_LIB_SRC src/*.cpp)
+set(HOS_LIB_SRC)
+file(GLOB HOS_LIB_UTIL src/util/*.cpp)
+list(APPEND HOS_LIB_SRC ${HOS_LIB_UTIL})
+
 add_library(hos STATIC ${HOS_LIB_SRC})
 target_link_libraries(hos ${HOS_COMMON_LIBS})
 

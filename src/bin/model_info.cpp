@@ -4,7 +4,7 @@
 #include <onnx/onnx_pb.h>
 
 #include <fstream>
-#include <hos/fmt.hpp>
+#include <hos/util/fmt.hpp>
 #include <stdexcept>
 
 using namespace hos;

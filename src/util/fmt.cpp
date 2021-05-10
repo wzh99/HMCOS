@@ -2,8 +2,8 @@
 #include <glog/logging.h>
 
 #include <functional>
-#include <hos/fmt.hpp>
-#include <hos/util.hpp>
+#include <hos/util/fmt.hpp>
+#include <hos/util/util.hpp>
 #include <unordered_map>
 
 namespace hos {
