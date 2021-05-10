@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iterator>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -32,7 +33,7 @@ inline std::string JoinWithComma(const StrIterable &strs,
     return Join(strs, ", ", std::move(prefix), std::move(suffix));
 }
 
-/// Vector Utility
+/// Functional Utility
 
 template <typename Dst, typename Src, typename F>
 inline auto Transform(const Src &src, F func) {
@@ -40,6 +41,11 @@ inline auto Transform(const Src &src, F func) {
     dst.reserve(src.size());
     std::transform(src.begin(), src.end(), std::back_inserter(dst), func);
     return dst;
+}
+
+template <typename Iterable, typename BinOp, typename Lhs>
+inline auto Accumulate(const Iterable &elems, BinOp binOp, Lhs init) {
+    return std::accumulate(elems.begin(), elems.end(), init, binOp);
 }
 
 /// Map Utility
