@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace hmp {
+namespace hos {
 
 /// String Utility
 
@@ -57,4 +57,4 @@ inline bool Contains(const Map &map, const Elem &elem) {
 
 /// ONNX/Protobuf Utility
 
-}  // namespace hmp
+}  // namespace hos

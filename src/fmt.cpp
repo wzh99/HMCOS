@@ -2,11 +2,11 @@
 #include <glog/logging.h>
 
 #include <functional>
-#include <hmp/fmt.hpp>
-#include <hmp/util.hpp>
+#include <hos/fmt.hpp>
+#include <hos/util.hpp>
 #include <unordered_map>
 
-namespace hmp {
+namespace hos {
 
 using namespace onnx;
 
@@ -45,4 +45,4 @@ std::string FmtAttrValue(const AttributeProto &attr) {
         return attrFmtFuncMap[type](attr);
 }
 
-}  // namespace hmp
+}  // namespace hos

@@ -4,10 +4,10 @@
 #include <onnx/onnx_pb.h>
 
 #include <fstream>
-#include <hmp/fmt.hpp>
+#include <hos/fmt.hpp>
 #include <stdexcept>
 
-using namespace hmp;
+using namespace hos;
 
 std::string shortValueName(const std::string &valueName,
                            const std::string &prefix) {

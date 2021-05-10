@@ -2,9 +2,9 @@
 
 #include <onnx/onnx_pb.h>
 
-#include <hmp/util.hpp>
+#include <hos/util.hpp>
 
-namespace hmp {
+namespace hos {
 
 using StrVec = std::vector<std::string>;
 
@@ -39,4 +39,4 @@ inline std::string FmtList(const Iterable &list, F fmt) {
 
 std::string FmtAttrValue(const onnx::AttributeProto &attr);
 
-}  // namespace hmp
+}  // namespace hos
