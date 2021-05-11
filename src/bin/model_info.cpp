@@ -6,6 +6,7 @@
 #include <fstream>
 #include <hos/util/fmt.hpp>
 #include <stdexcept>
+#include <hos/core/obj.hpp>
 
 using namespace hos;
 
@@ -57,4 +58,6 @@ int main(int argc, char *argv[]) {
     for (auto &tensor : graph.initializer())
         fmt::print("{}: {}\n", shortValueName(tensor.name(), prefix),
                    FmtTensorBrief(tensor));
+
+    return 0;
 }

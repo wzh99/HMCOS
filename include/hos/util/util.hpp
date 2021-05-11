@@ -10,7 +10,7 @@ namespace hos {
 
 /// String Utility
 
-template <typename StrIterable>
+template <class StrIterable>
 inline std::string Join(const StrIterable &strs, std::string &&sep,
                         std::string &&prefix = "", std::string &&suffix = "") {
     // Return empty string if there are no elements
@@ -26,7 +26,7 @@ inline std::string Join(const StrIterable &strs, std::string &&sep,
     return ss.str();
 }
 
-template <typename StrIterable>
+template <class StrIterable>
 inline std::string JoinWithComma(const StrIterable &strs,
                                  std::string &&prefix = "",
                                  std::string &&suffix = "") {
@@ -35,7 +35,7 @@ inline std::string JoinWithComma(const StrIterable &strs,
 
 /// Functional Utility
 
-template <typename Dst, typename Src, typename F>
+template <class Dst, class Src, class F>
 inline auto Transform(const Src &src, F func) {
     Dst dst;
     dst.reserve(src.size());
@@ -43,14 +43,14 @@ inline auto Transform(const Src &src, F func) {
     return dst;
 }
 
-template <typename Iterable, typename BinOp, typename Lhs>
+template <class Iterable, class BinOp, class Lhs>
 inline auto Accumulate(const Iterable &elems, BinOp binOp, Lhs init) {
     return std::accumulate(elems.begin(), elems.end(), init, binOp);
 }
 
 /// Map Utility
 
-template <typename Map, typename Elem>
+template <class Map, class Elem>
 inline bool Contains(const Map &map, const Elem &elem) {
     return map.find(elem) != map.end();
 }

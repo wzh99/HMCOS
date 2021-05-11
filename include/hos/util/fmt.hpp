@@ -32,7 +32,7 @@ inline std::string FmtTensorBrief(const onnx::TensorProto &tensor) {
                        FmtDataType(tensor.data_type()));
 }
 
-template <typename Iterable, typename F>
+template <class Iterable, class F>
 inline std::string FmtList(const Iterable &list, F fmt) {
     return JoinWithComma(Transform<StrVec>(list, fmt), "[", "]");
 }
