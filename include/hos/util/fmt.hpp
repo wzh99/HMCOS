@@ -18,23 +18,42 @@ inline std::string FmtStr(const std::string &s) {
     return fmt::format("'{}'", s);
 }
 
-inline std::string FmtDims(const I64Repeated &dims) {
+template <class Iterable, class F>
+inline std::string FmtList(const Iterable &list, F fmt,
+                           std::string &&prefix = "[",
+                           std::string &&suffix = "]") {
+    return JoinWithComma(Transform<StrVec>(list, fmt), std::move(prefix),
+                         std::move(suffix));
+}
+
+inline std::string FmtTensorDims(const I64Repeated &dims) {
     if (dims.size() == 1)
         return fmt::format("({},)", dims[0]);
     else
-        return JoinWithComma(Transform<StrVec>(dims, FmtInt), "(", ")");
+        return FmtList(dims, FmtInt, "(", ")");
 }
 
 std::string FmtDataType(int32_t dtype);
 
 inline std::string FmtTensorBrief(const onnx::TensorProto &tensor) {
-    return fmt::format("Tensor<{}, {}>", FmtDims(tensor.dims()),
+    return fmt::format("Tensor<{}, {}>", FmtTensorDims(tensor.dims()),
                        FmtDataType(tensor.data_type()));
 }
 
-template <class Iterable, class F>
-inline std::string FmtList(const Iterable &list, F fmt) {
-    return JoinWithComma(Transform<StrVec>(list, fmt), "[", "]");
+inline std::string FmtShapeDim(const onnx::TensorShapeProto_Dimension &dim) {
+    return dim.has_dim_value() ? FmtInt(dim.dim_value()) : dim.dim_param();
+}
+
+inline std::string FmtShape(const onnx::TensorShapeProto &shape) {
+    if (shape.dim().size() == 1)
+        return fmt::format("({},)", FmtShapeDim(shape.dim(0)));
+    else
+        return FmtList(shape.dim(), FmtShapeDim, "(", ")");
+}
+
+inline std::string FmtTensorType(const onnx::TypeProto_Tensor &type) {
+    return fmt::format("Tensor<{}, {}>", FmtShape(type.shape()),
+                       FmtDataType(type.elem_type()));
 }
 
 std::string FmtAttrValue(const onnx::AttributeProto &attr);
