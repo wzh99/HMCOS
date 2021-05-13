@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
     google::InitGoogleLogging(argv[0]);
 
     // Read graph from file
-    std::string path = "../../model/nasnet_mobile.onnx";
+    std::string path = "../../model/mobilenet_v2.onnx";
     std::ifstream ifs(path, std::ifstream::binary);
     if (!ifs) LOG(FATAL) << "Cannot open model file.";
     onnx::ModelProto model;

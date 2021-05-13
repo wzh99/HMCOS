@@ -1,27 +1,22 @@
 #pragma once
 
+#include <fmt/core.h>
 #include <glog/logging.h>
 
 #include <cstdint>
+#include <functional>
 #include <utility>
 
-class ObjectBase {
-public:
-    virtual ~ObjectBase() = default;
+namespace hos {
 
-protected:
-    ObjectBase() = default;
-
-private:
-    uint32_t refCnt = 0;
-
-    template <class>
-    friend class Ref;
-};
-
+/// Object interface for RTTI using CRTP
+/// If one wants to use this interface, `Object` must appear BEFORE `ObjectBase`
+/// or other subclasses of `ObjectBase` in the inheritance list.
 template <class ObjType>
 class Object {
 public:
+    /// All classes that derive from `Object` has to declare static constexpr
+    /// member `typeIndex`. Different classes must have different indices.
     static constexpr uint32_t typeIndex = 0;
 
     virtual uint32_t GetTypeIndex() { return ObjType::typeIndex; }
@@ -35,89 +30,19 @@ public:
         else
             return this->GetTypeIndex() == TargetType::typeIndex;
     }
-
-    Object() = default;
-    Object(const Object& obj) = delete;
-    Object(Object&& obj) = delete;
 };
 
-template <class ObjType>
-class Ref {
-public:
-    template <class... Args>
-    static Ref<ObjType> Make(Args&&... args) {
-        return Ref<ObjType>(new ObjType(std::forward<Args>(args)...));
-    }
+/// Type index of a derived class is shift of base class plus its own offset.
+static constexpr uint32_t BASE_INDEX_SHIFT = 4;
 
-    template <class OtherObjType>
-    Ref(const Ref<OtherObjType>& ref) : Ref(ref.ptr) {}
+template <class ObjType, class TargetObjType>
+std::shared_ptr<TargetObjType> As(const std::shared_ptr<ObjType> &ptr) {
+    if (!ptr->Is<TargetObjType>())
+        LOG(FATAL) << fmt::format("Object is not of type `{}`.",
+                                  typeid(TargetObjType).name());
+    else
+        return std::shared_ptr<TargetObjType>(
+            ptr, static_cast<TargetObjType *>(ptr.get()));
+}
 
-    ~Ref() { decRef(); }
-
-    ObjType* Get() const { return ptr; }
-
-    void Swap(Ref<ObjType>& other) { std::swap(this->ptr, other->ptr); }
-
-    template <class TargetObjType>
-    Ref<TargetObjType> As() const {
-        if (!Get()->Is<TargetObjType>())
-            LOG(FATAL) << fmt::format("Object is not of type `{}`.",
-                                      typeid(TargetObjType).name());
-        else
-            return Ref<TargetObjType>(static_cast<TargetObjType*>(ptr));
-    }
-
-    ObjType* operator->() const { return Get(); }
-
-    ObjType& operator*() const { return *Get(); }
-
-    template <class OtherObjType>
-    Ref<ObjType>& operator=(const Ref<OtherObjType>& other) {
-        decRef();
-        ptr = other.ptr;
-        incRef();
-        return *this;
-    }
-
-    bool operator==(const Ref<ObjType>& other) {
-        return this->ptr == other->ptr;
-    }
-
-    bool operator!=(const Ref<ObjType>& other) {
-        return this->ptr != other->ptr;
-    }
-
-private:
-    Ref(ObjType* ptr) : ptr(ptr) { incRef(); }
-
-    void incRef() { ptr->refCnt++; }
-
-    void decRef() {
-        ptr->refCnt--;
-        if (ptr->refCnt == 0) {
-            delete ptr;
-            ptr = nullptr;
-        }
-    }
-
-    ObjType* ptr;
-
-    template <class>
-    friend class Ref;
-};
-
-class Vertex : public Object<Vertex>, public ObjectBase {
-public:
-    Vertex(uint32_t index) : ObjectBase(), index(index) {}
-
-    static constexpr uint32_t typeIndex = 1;
-
-private:
-    uint32_t index;
-};
-
-class Op : public Object<Op>, public Vertex {
-public:
-    Op() : Vertex(0) {}
-    static constexpr uint32_t typeIndex = 2;
-};
+}  // namespace hos

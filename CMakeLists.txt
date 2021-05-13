@@ -18,11 +18,15 @@ find_package(fmt REQUIRED)
 set(HOS_COMMON_LIBS onnx glog::glog fmt::fmt)
 
 set(HOS_LIB_SRC)
+file(GLOB HOS_LIB_CORE src/core/*.cpp)
 file(GLOB HOS_LIB_UTIL src/util/*.cpp)
-list(APPEND HOS_LIB_SRC ${HOS_LIB_UTIL})
+list(APPEND HOS_LIB_SRC ${HOS_LIB_CORE} ${HOS_LIB_UTIL})
 
 add_library(hos STATIC ${HOS_LIB_SRC})
 target_link_libraries(hos ${HOS_COMMON_LIBS})
 
 add_executable(model_info src/bin/model_info.cpp)
 target_link_libraries(model_info hos)
+
+add_executable(to_graph src/bin/to_graph.cpp)
+target_link_libraries(to_graph hos)

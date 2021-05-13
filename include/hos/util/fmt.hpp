@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fmt/core.h>
 #include <onnx/onnx_pb.h>
 
 #include <hos/util/util.hpp>
