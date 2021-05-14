@@ -61,7 +61,7 @@ struct Op : public Object<Op>, public Vertex {
 
     Op(const onnx::NodeProto *node) : node(node) {}
 
-    const std::string &GetName() const { return node->name(); }
+    const std::string &GetName() const { return node->op_type(); }
 };
 
 class Graph {

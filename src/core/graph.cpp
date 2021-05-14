@@ -9,7 +9,7 @@ Graph::Graph(std::unique_ptr<onnx::ModelProto> &&model, const std::string &name)
     : model(std::move(model)) {
     // Create name of this graph
     auto &graph = this->model->graph();
-    this->name = name.size() == 0 ? model->graph().name() : name;
+    this->name = name.size() == 0 ? graph.name() : name;
 
     // Build name-value map
     std::unordered_map<std::string, ValueRef> nameToVal;
@@ -71,6 +71,29 @@ Graph::Graph(std::unique_ptr<onnx::ModelProto> &&model, const std::string &name)
         }
     }
     for (auto &out : outputs) Vertex::Connect(out->value->def, out);
+}
+
+void Graph::Visualize(const std::string &dir, const std::string &format) const {
+    // Define DOT graph
+    DotCreator<VertexRef> creator(name);
+
+    // Add vertices
+    for (auto &in : inputs)
+        creator.AddNode(in, in->value->name);
+    for (auto &op : ops)
+        creator.AddNode(op, op->GetName());
+    for (auto &out : outputs)
+        creator.AddNode(out, out->value->name);
+
+    // Add edges
+    for (auto &op : ops)
+        for (auto &pred : op->preds)
+            creator.AddEdge(pred, op);
+    for (auto &out : outputs)
+        creator.AddEdge(out->preds[0], out);
+
+    // Compile
+    creator.Render(dir, format);
 }
 
 }  // namespace hos
