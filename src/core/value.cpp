@@ -46,4 +46,13 @@ Value Value::CreateParam(const onnx::TensorProto &tensor) {
     return value;
 }
 
+VertexRef Value::GetVertex() const {
+    if (kind == ValueKind::INPUT)
+        return input;
+    else if (kind == ValueKind::RESULT)
+        return def;
+    else
+        LOG(FATAL) << "Parameter value does not have corresponding vertex.";
+}
+
 }  // namespace hos

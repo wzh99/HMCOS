@@ -48,10 +48,24 @@ inline auto Accumulate(const Iterable &elems, BinOp binOp, Lhs init) {
     return std::accumulate(elems.begin(), elems.end(), init, binOp);
 }
 
+/// Vector Utility
+
+template <class ElemType>
+inline bool Contains(const std::vector<ElemType> &vec, const ElemType &elem) {
+    return std::find(vec.begin(), vec.end(), elem) != vec.end();
+}
+
+template <class ElemType>
+inline void AddUnique(std::vector<ElemType> &vec, const ElemType &elem) {
+    if (Contains(vec, elem)) return;
+    vec.push_back(elem);
+}
+
 /// Map Utility
 
-template <class Map, class Elem>
-inline bool Contains(const Map &map, const Elem &elem) {
+template <class KeyType, class ValueType>
+inline bool Contains(const std::unordered_map<KeyType, ValueType> &map,
+                     const KeyType &elem) {
     return map.find(elem) != map.end();
 }
 

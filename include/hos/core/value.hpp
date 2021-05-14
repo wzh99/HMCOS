@@ -47,7 +47,11 @@ enum class ValueKind {
 };
 
 struct Op;
+struct Input;
+struct Vertex;
 using OpRef = std::shared_ptr<Op>;
+using InputRef = std::shared_ptr<Input>;
+using VertexRef = std::shared_ptr<Vertex>;
 
 struct Value {
     /// Common fields of all kinds of values
@@ -55,17 +59,24 @@ struct Value {
     std::string name;
     TensorType type;
 
-    /// Kind-specific fields
+    /// Kind-specific fields.
+
+    /// Valid for input. Stores shared pointer to corresponding input vertex.
+    InputRef input;
     /// Valid for parameter. Stores pointer to tensor data.
     const onnx::TensorProto *data = nullptr;
-    /// Valid for intermediate. Stores counted reference to operator which
-    /// defines this value.
-    OpRef def;
+    /// Valid for result. Stores shared pointer to op which defines this value.
+    OpRef def = nullptr;
+    /// Valid for result. Stores shared pointers to ops that use (take as input)
+    /// this value.
     std::vector<OpRef> uses;
 
     static Value CreateInput(const onnx::ValueInfoProto &info);
     static Value CreateParam(const onnx::TensorProto &tensor);
     static Value CreateResult(const onnx::ValueInfoProto &info);
+
+    /// Return the vertex in graph where this value is defined.
+    VertexRef GetVertex() const;
 };
 
 using ValueRef = std::shared_ptr<Value>;
