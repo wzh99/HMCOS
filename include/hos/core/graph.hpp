@@ -5,10 +5,7 @@
 
 namespace hos {
 
-struct Vertex : public Object<Vertex> {
-    static constexpr uint32_t typeIndex =
-        (Object::typeIndex << BASE_INDEX_SHIFT) + 1;
-
+struct Vertex {
     /// Predecessors and successors of vertex
     /// All elements in predecessor or successor list must be distinct.
     /// (Multi-edges are not allowed)
@@ -18,50 +15,65 @@ struct Vertex : public Object<Vertex> {
         AddUnique(tail->succs, head);
         AddUnique(head->preds, tail);
     }
+
+    static void Disconnect(const VertexRef &tail, const VertexRef &head) {
+        Remove(tail->succs, head);
+        Remove(head->preds, tail);
+    }
+
+    enum class VertexKind {
+        INPUT,
+        OUTPUT,
+        OP,
+    };
+
+    virtual VertexKind GetKind() const = 0;
+
+protected:
+    Vertex() = default;
 };
 
-struct Input : public Object<Input>, public Vertex {
-    static constexpr uint32_t typeIndex =
-        (Vertex::typeIndex << BASE_INDEX_SHIFT) + 1;
-
+struct Input : public Vertex {
     /// Value that this vertex corresponds to
     ValueRef value;
 
     Input(const ValueRef &val) : value(val) {
         LOG_ASSERT(val->kind == ValueKind::INPUT);
     }
+
+    static constexpr auto classKind = VertexKind::INPUT;
+
+    VertexKind GetKind() const { return VertexKind::INPUT; }
 };
 
-struct Output : public Object<Output>, public Vertex {
-    static constexpr uint32_t typeIndex =
-        (Vertex::typeIndex << BASE_INDEX_SHIFT) + 2;
-
+struct Output : public Vertex {
     /// Value that this vertex corresponds to
     ValueRef value;
 
     Output(const ValueRef &val) : value(val) {
         LOG_ASSERT(val->kind == ValueKind::RESULT);
     }
+
+    static constexpr auto classKind = VertexKind::OUTPUT;
+
+    VertexKind GetKind() const { return VertexKind::OUTPUT; }
 };
 
 using OutputRef = std::shared_ptr<Output>;
 
-struct Op : public Object<Op>, public Vertex {
-    static constexpr uint32_t typeIndex =
-        (Vertex::typeIndex << BASE_INDEX_SHIFT) + 3;
-
+struct Op : Vertex {
     /// `NodeProto` pointer in ONNX graph
     const onnx::NodeProto *node;
     /// Input and output values of this operator
     std::vector<ValueRef> inputs, outputs;
-    /// Parent in dominance tree
-    OpRef parent;
-    /// Children in dominance tree
-    std::vector<OpRef> children;
 
     Op(const onnx::NodeProto *node) : node(node) {}
 
-    const std::string &GetName() const { return node->op_type(); }
+    const std::string &GetType() const { return node->op_type(); }
+
+    static constexpr auto classKind = VertexKind::OP;
+
+    VertexKind GetKind() const { return VertexKind::OP; }
 };
 
 class Graph {
@@ -83,6 +95,9 @@ public:
     /// Otherwise the constructor will panic.
     Graph(std::unique_ptr<onnx::ModelProto> &&model,
           const std::string &name = "");
+
+    /// Traverse the graph in reverse post-order.
+    void Traverse(const std::function<void(VertexRef)> &func);
 
     /// Visualize vertices and edges in the graph.
     /// Vertices are connected according to their def-use relations. Values will

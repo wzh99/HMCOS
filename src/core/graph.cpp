@@ -73,24 +73,55 @@ Graph::Graph(std::unique_ptr<onnx::ModelProto> &&model, const std::string &name)
     for (auto &out : outputs) Vertex::Connect(out->value->def, out);
 }
 
+struct StackRecord {
+    VertexRef vertex;
+    bool visited;
+};
+
+void Graph::Traverse(const std::function<void(hos::VertexRef)> &func) {
+    // Initialize stack
+    std::vector<StackRecord> stack;
+    std::unordered_set<VertexRef> traversed;
+    for (auto iter = outputs.rbegin(); iter != outputs.rend(); iter++)
+        stack.push_back({*iter, false});
+
+    // Iterate until no elements on stack
+    while (!stack.empty()) {
+        // Pop one vertex
+        auto [vertex, visited] = stack.back();
+        stack.pop_back();
+
+        // Skip if this vertex is traversed before
+        if (traversed.find(vertex) != traversed.end()) continue;
+
+        // Apply function to vertex if it has been visited
+        if (visited) {
+            func(vertex);
+            traversed.insert(vertex);
+            continue;
+        }
+
+        // Otherwise add predecessors to stack
+        stack.push_back({vertex, true});
+        auto &preds = vertex->preds;
+        for (auto iter = preds.rbegin(); iter != preds.rend(); iter++) 
+            stack.push_back({*iter, false});
+    }
+}
+
 void Graph::Visualize(const std::string &dir, const std::string &format) const {
     // Define DOT graph
     DotCreator<VertexRef> creator(name);
 
     // Add vertices
-    for (auto &in : inputs)
-        creator.AddNode(in, in->value->name);
-    for (auto &op : ops)
-        creator.AddNode(op, op->GetName());
-    for (auto &out : outputs)
-        creator.AddNode(out, out->value->name);
+    for (auto &in : inputs) creator.AddNode(in, in->value->name);
+    for (auto &op : ops) creator.AddNode(op, op->GetType());
+    for (auto &out : outputs) creator.AddNode(out, out->value->name);
 
     // Add edges
     for (auto &op : ops)
-        for (auto &pred : op->preds)
-            creator.AddEdge(pred, op);
-    for (auto &out : outputs)
-        creator.AddEdge(out->preds[0], out);
+        for (auto &pred : op->preds) creator.AddEdge(pred, op);
+    for (auto &out : outputs) creator.AddEdge(out->preds[0], out);
 
     // Compile
     creator.Render(dir, format);

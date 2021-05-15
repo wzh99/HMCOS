@@ -61,6 +61,11 @@ inline void AddUnique(std::vector<ElemType> &vec, const ElemType &elem) {
     vec.push_back(elem);
 }
 
+template <class ElemType>
+inline void Remove(std::vector<ElemType> &vec, const ElemType &val) {
+    vec.erase(std::remove(vec.begin(), vec.end(), val), vec.end());
+}
+
 /// Map Utility
 
 template <class KeyType, class ValueType>
