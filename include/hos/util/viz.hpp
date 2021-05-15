@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include <filesystem>
 
 namespace hos {
 
@@ -86,14 +87,15 @@ private:
 #if defined(WIN32)
 #define DEFAULT_FONT "Segoe UI"
 #elif defined(__APPLE__)
-#define DEFAULT_FONT ".SFNSDisplay-Regular"
+#define DEFAULT_FONT ".AppleSystemUIFont"
 #endif
 
 template <class NodeType>
 void DotCreator<NodeType>::Render(const std::string &dir,
                                   const std::string &format) const {
     // Create DOT source file
-    auto srcPath = fmt::format("{}/{}.gv", dir, name, format);
+    using namespace std::filesystem;
+    auto srcPath = (path(dir) / path(name + ".gv")).string();
     std::ofstream ofs(srcPath);
     if (!ofs.is_open()) {
         LOG(ERROR) << fmt::format("Cannot create source file: {}", srcPath);
@@ -102,7 +104,7 @@ void DotCreator<NodeType>::Render(const std::string &dir,
 
     // Write code to file
     CodeWriter writer(ofs);
-    writer.WriteLn("digraph " + name + " { ");
+    writer.Write("digraph " + name + " { ");
     {
         // Write node attribute
         auto indent = writer.Indent();
