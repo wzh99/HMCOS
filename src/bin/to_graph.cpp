@@ -16,14 +16,7 @@ int main(int argc, char const *argv[]) {
     Graph graph(std::move(model), "mobilenet_v2");
 
     // Visualize graph
-    graph.Traverse([](VertexRef v) {
-        // fmt::print("{}\n", v->GetTypeIndex());
-        if (Is<Op>(v)) {
-            auto op = As<Op>(v);
-            fmt::print("{}\n", op->GetType());
-        }
-    });
-    // graph.Visualize("../out");
+    graph.Visualize("../out");
 
     return 0;
 }

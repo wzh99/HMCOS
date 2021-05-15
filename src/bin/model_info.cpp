@@ -4,7 +4,6 @@
 #include <onnx/shape_inference/implementation.h>
 
 #include <fstream>
-#include <hos/core/obj.hpp>
 #include <hos/util/fmt.hpp>
 #include <stdexcept>
 
