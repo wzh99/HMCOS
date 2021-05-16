@@ -74,6 +74,6 @@ inline bool Contains(const std::unordered_map<KeyType, ValueType> &map,
     return map.find(elem) != map.end();
 }
 
-/// ONNX/Protobuf Utility
+/// ONNX Utility
 
 }  // namespace hos

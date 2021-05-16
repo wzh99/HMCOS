@@ -35,6 +35,12 @@ struct TensorType {
 
     static TensorType FromTensor(const onnx::TensorProto &tensor);
     static TensorType FromType(const onnx::TypeProto_Tensor &type);
+
+    bool operator==(const TensorType &other) const;
+    
+    bool operator!=(const TensorType &other) const {
+        return !operator==(other);
+    }
 };
 
 enum class ValueKind {
@@ -68,7 +74,8 @@ struct Value {
     /// Valid for result. Stores shared pointer to op which defines this value.
     OpRef def = nullptr;
     /// Valid for result. Stores shared pointers to ops that use (take as input)
-    /// this value.
+    /// this value. An op may appear multiple times if it uses this value more
+    /// than once.
     std::vector<OpRef> uses;
 
     static Value CreateInput(const onnx::ValueInfoProto &info);

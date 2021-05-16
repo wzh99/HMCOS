@@ -64,6 +64,10 @@ Graph::Graph(std::unique_ptr<onnx::ModelProto> &&model, const std::string &name)
     }
 
     // Connect vertices
+    connectVerts();
+}
+
+void Graph::connectVerts() {
     for (auto &op : ops) {
         for (auto &in : op->inputs) {
             if (in->kind == ValueKind::PARAM) continue;
@@ -78,7 +82,7 @@ struct StackRecord {
     bool visited;
 };
 
-void Graph::Traverse(const std::function<void(hos::VertexRef)> &func) {
+void Graph::Traverse(const std::function<void(const VertexRef &)> &func) const {
     // Initialize stack
     std::vector<StackRecord> stack;
     std::unordered_set<VertexRef> traversed;
@@ -104,7 +108,7 @@ void Graph::Traverse(const std::function<void(hos::VertexRef)> &func) {
         // Otherwise add predecessors to stack
         stack.push_back({vertex, true});
         auto &preds = vertex->preds;
-        for (auto iter = preds.rbegin(); iter != preds.rend(); iter++) 
+        for (auto iter = preds.rbegin(); iter != preds.rend(); iter++)
             stack.push_back({*iter, false});
     }
 }

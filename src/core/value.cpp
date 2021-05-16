@@ -21,6 +21,14 @@ TensorType TensorType::FromType(const onnx::TypeProto_Tensor &type) {
     return TensorType{shape, DataType(type.elem_type())};
 }
 
+bool TensorType::operator==(const TensorType &other) const {
+    if (this->dtype != other.dtype) return false;
+    if (this->shape.size() != other.shape.size()) return false;
+    for (auto i = 0u; i < shape.size(); i++)
+        if (this->shape[i] != other.shape[i]) return false;
+    return true;
+}
+
 Value Value::CreateInput(const onnx::ValueInfoProto &info) {
     Value value;
     value.kind = ValueKind::INPUT;
