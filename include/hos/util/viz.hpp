@@ -2,11 +2,10 @@
 
 #include <glog/logging.h>
 
-#include <fstream>
-#include <map>
-#include <string>
-#include <unordered_map>
 #include <filesystem>
+#include <fstream>
+#include <hos/util/writer.hpp>
+#include <unordered_map>
 
 namespace hos {
 
@@ -53,36 +52,6 @@ inline void DotCreator<NodeType>::AddEdge(const NodeType &tail,
     // Add this edge
     edges.emplace_back(nodeIds[tail], nodeIds[head]);
 }
-
-class CodeWriter {
-public:
-    CodeWriter(std::ofstream &ofs) : ofs(ofs) {}
-
-    void Write(const std::string &str) { ofs << str; }
-
-    void WriteLn(const std::string &str) {
-        Write("\n");
-        for (auto i = 0u; i < indCnt; i++) Write(INDENT_STR);
-        Write(str);
-    }
-
-    class Indentation {
-    public:
-        Indentation(uint32_t &cnt) : cnt(cnt) { cnt++; }
-        ~Indentation() { cnt--; }
-
-    private:
-        uint32_t &cnt;
-    };
-
-    Indentation Indent() { return Indentation(indCnt); }
-
-private:
-    static constexpr auto INDENT_STR = "    ";
-
-    std::ofstream &ofs;
-    uint32_t indCnt = 0;
-};
 
 #if defined(WIN32)
 #define DEFAULT_FONT "Segoe UI"
