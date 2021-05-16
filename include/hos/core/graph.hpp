@@ -43,7 +43,7 @@ struct Input : public Vertex {
 
     static constexpr auto classKind = VertexKind::INPUT;
 
-    VertexKind GetKind() const { return VertexKind::INPUT; }
+    VertexKind GetKind() const override { return VertexKind::INPUT; }
 };
 
 struct Output : public Vertex {
@@ -56,7 +56,7 @@ struct Output : public Vertex {
 
     static constexpr auto classKind = VertexKind::OUTPUT;
 
-    VertexKind GetKind() const { return VertexKind::OUTPUT; }
+    VertexKind GetKind() const override { return VertexKind::OUTPUT; }
 };
 
 using OutputRef = std::shared_ptr<Output>;
@@ -73,7 +73,7 @@ struct Op : Vertex {
 
     static constexpr auto classKind = VertexKind::OP;
 
-    VertexKind GetKind() const { return VertexKind::OP; }
+    VertexKind GetKind() const override { return VertexKind::OP; }
 };
 
 class Graph {
@@ -97,7 +97,10 @@ public:
           const std::string &name = "");
 
     /// Traverse the graph in reverse post-order.
-    void Traverse(const std::function<void(VertexRef)> &func);
+    /// This method is suitable for simple traversal that does not depend on
+    /// results of predecessors. If results of predecessors are needed, consider
+    /// using `GraphVisitor`.
+    void Traverse(const std::function<void(const VertexRef &)> &func) const;
 
     /// Visualize vertices and edges in the graph.
     /// Vertices are connected according to their def-use relations. Values will
@@ -106,9 +109,45 @@ public:
                    const std::string &format = "pdf") const;
 
 private:
+    void connectVerts();
+
     /// Owns the ONNX model so that all pointers or references to objects in it
     /// remain valid
     std::unique_ptr<onnx::ModelProto> model;
+};
+
+template <class Ret, class... Args>
+class GraphVisitor {
+public:
+    virtual Ret Visit(const VertexRef &vert, Args... args) {
+        using Kind = Vertex::VertexKind;
+
+        if (Contains(memo, vert)) return memo[vert];
+
+        Ret ret;
+        switch (vert->GetKind()) {
+            case Kind::INPUT:
+                ret = VisitInput(As<Input>(vert), std::forward<Args>(args)...);
+                break;
+            case Kind::OUTPUT:
+                ret =
+                    VisitOutput(As<Output>(vert), std::forward<Args>(args)...);
+                break;
+            case Kind::OP:
+                ret = VisitOp(As<Op>(vert), std::forward<Args>(args)...);
+                break;
+            default:
+                LOG(FATAL) << "Unreachable.";
+        }
+        return ret;
+    }
+
+    virtual Ret VisitInput(const InputRef &input, Args... args) = 0;
+    virtual Ret VisitOutput(const OutputRef &output, Args... args) = 0;
+    virtual Ret VisitOp(const OpRef &op, Args... args) = 0;
+
+protected:
+    std::unordered_map<VertexRef, Ret> memo;
 };
 
 using GraphRef = std::shared_ptr<Graph>;
