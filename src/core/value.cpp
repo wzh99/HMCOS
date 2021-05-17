@@ -21,6 +21,31 @@ TensorType TensorType::FromType(const onnx::TypeProto_Tensor &type) {
     return TensorType{shape, DataType(type.elem_type())};
 }
 
+static uint64_t scalarSize[] = {
+    0,
+    sizeof(float),
+    sizeof(uint8_t),
+    sizeof(int8_t),
+    sizeof(uint16_t),
+    sizeof(int16_t),
+    sizeof(int32_t),
+    sizeof(int64_t),
+    sizeof(std::string),
+    sizeof(bool),
+    2,  // float16
+    sizeof(double),
+    sizeof(uint32_t),
+    sizeof(uint64_t),
+    8,   // complex64
+    16,  // complex128
+    2,   // bfloat16
+};
+
+uint64_t TensorType::Size() const {
+    auto nElem = Accumulate(shape, std::multiplies<int64_t>(), 1ll);
+    return uint64_t(nElem) * scalarSize[dtype];
+}
+
 bool TensorType::operator==(const TensorType &other) const {
     if (this->dtype != other.dtype) return false;
     if (this->shape.size() != other.shape.size()) return false;

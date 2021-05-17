@@ -39,7 +39,8 @@ std::vector<Lifetime> ComputeLifetime(const OpSeq &opSeq, const Graph &graph) {
     std::unordered_map<ValueRef, uint32_t> useCnt;
     for (auto &in : graph.inputs) {
         auto &val = in->value;
-        valLife.insert({val, Lifetime{val, -1, Lifetime::UNKNOWN}});
+        valLife.insert(
+            {val, Lifetime{val, Lifetime::TIME_INPUT, Lifetime::TIME_UNKNOWN}});
         useCnt.insert({val, uint32_t(val->uses.size())});
     }
 
@@ -48,7 +49,7 @@ std::vector<Lifetime> ComputeLifetime(const OpSeq &opSeq, const Graph &graph) {
         // Initialize lifetime of its outputs
         auto &op = opSeq[i];
         for (auto &out : op->outputs) {
-            valLife.insert({out, Lifetime{out, i, Lifetime::UNKNOWN}});
+            valLife.insert({out, Lifetime{out, i, Lifetime::TIME_UNKNOWN}});
             useCnt.insert({out, uint32_t(out->uses.size())});
         }
 

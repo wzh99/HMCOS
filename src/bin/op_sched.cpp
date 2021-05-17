@@ -2,7 +2,7 @@
 #include <glog/logging.h>
 
 #include <fstream>
-#include <hos/sched/life.hpp>
+#include <hos/sched/plan.hpp>
 #include <hos/util/op.hpp>
 
 using namespace hos;
@@ -24,7 +24,13 @@ int main(int argc, char const *argv[]) {
     Graph graph(std::move(model), "mobilenet_v2");
     auto sched = ReversePostOrder(graph);
     auto ltVec = ComputeLifetime(sched, graph);
-    for (auto &lt : ltVec) lt.Print();
+    // for (auto &lt : ltVec) lt.Print();
+
+    Container container(0, 20);
+    container.Place(1, 3, 3);
+    container.Place(6, 3, 3);
+    container.Lift(5);
+    container.Print();
     
     return 0;
 }

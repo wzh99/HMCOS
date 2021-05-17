@@ -36,6 +36,8 @@ struct TensorType {
     static TensorType FromTensor(const onnx::TensorProto &tensor);
     static TensorType FromType(const onnx::TypeProto_Tensor &type);
 
+    uint64_t Size() const;
+
     bool operator==(const TensorType &other) const;
     
     bool operator!=(const TensorType &other) const {
