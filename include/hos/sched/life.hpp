@@ -22,37 +22,24 @@ struct Lifetime {
     void Print() const { fmt::print("{}:{} {}\n", gen, kill, value->name); }
 };
 
-struct CmpByGenKill {
-    bool operator()(const Lifetime &lhs, const Lifetime &rhs) const {
-        if (lhs.gen < rhs.gen) return lhs.gen < rhs.gen;
-        return lhs.kill < rhs.kill;
-    }
+inline bool CmpByGenKill(const Lifetime &lhs, const Lifetime &rhs) {
+    if (lhs.gen < rhs.gen) return lhs.gen < rhs.gen;
+    return lhs.kill < rhs.kill;
+}
+
+inline bool CmpByLength(const Lifetime &lhs, const Lifetime &rhs) {
+    auto ll = lhs.Length(), rl = rhs.Length();
+    return ll != rl ? ll < rl : CmpByGenKill(lhs, rhs);
+}
+
+/// Lifetime statistics of all values in a computation graph
+struct LifetimeStat {
+    /// Lifetime limit of values
+    int32_t begin, end;
+    /// Lifetimes of each value
+    std::vector<Lifetime> values;
 };
 
-struct CmpByLength {
-    bool operator()(const Lifetime &lhs, const Lifetime &rhs) const {
-        auto ll = lhs.Length(), rl = rhs.Length();
-        return ll != rl ? ll < rl : CmpByGenKill()(lhs, rhs);
-    }
-};
-
-std::vector<Lifetime> ComputeLifetime(const OpSeq &opSeq, const Graph &graph);
-
-/// Spatial-temporal descriptor of a value in memory
-struct MemoryDesc : public Lifetime {
-    static constexpr uint64_t OFFSET_UNKNOWN = UINT64_MAX;
-
-    /// Memory offset of this value
-    uint64_t offset = OFFSET_UNKNOWN;
-    /// Cached size of the value in bytes
-    uint64_t size;
-
-    explicit MemoryDesc(const Lifetime &life)
-        : Lifetime(life), size(life.value->type.Size()) {}
-
-    void Print() const {
-        fmt::print("t[{}:{}] s[{}:{}] {}\n", gen, kill, offset, size, value->name);
-    }
-};
+LifetimeStat ComputeLifetime(const OpSeq &opSeq, const Graph &graph);
 
 }  // namespace hos

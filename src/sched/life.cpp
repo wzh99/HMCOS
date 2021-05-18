@@ -30,7 +30,7 @@ static uint32_t overlapInput(const OpRef &op) {
     return OVERLAP_FAILED;
 }
 
-std::vector<Lifetime> ComputeLifetime(const OpSeq &opSeq, const Graph &graph) {
+LifetimeStat ComputeLifetime(const OpSeq &opSeq, const Graph &graph) {
     // Op sequence must be a full permutation of ops in graph
     LOG_ASSERT(opSeq.size() == graph.ops.size());
 
@@ -74,15 +74,15 @@ std::vector<Lifetime> ComputeLifetime(const OpSeq &opSeq, const Graph &graph) {
     }
 
     // Finalize lifetime of outputs
-    for (auto &out : graph.outputs)
-        valLife[out->value].kill = int32_t(opSeq.size());
+    int endTime = int32_t(opSeq.size());
+    for (auto &out : graph.outputs) valLife[out->value].kill = endTime;
 
     // Sort lifetime
-    auto ltVec = Transform<std::vector<Lifetime> >(
+    auto values = Transform<std::vector<Lifetime> >(
         valLife, [](auto &p) { return p.second; });
-    std::sort(ltVec.begin(), ltVec.end(), CmpByGenKill());
+    std::sort(values.begin(), values.end(), CmpByGenKill);
 
-    return ltVec;
+    return {Lifetime::TIME_INPUT, endTime, std::move(values)};
 }
 
 }  // namespace hos

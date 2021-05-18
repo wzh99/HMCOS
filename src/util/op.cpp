@@ -6,6 +6,19 @@
 
 namespace hos {
 
+std::unordered_set<std::string> ewOps{
+    "Abs",        "Add",   "And",   "Neg",         "Mul",
+    "Exp",        "Div",   "Ceil",  "Not",         "LeakyRelu",
+    "Elu",        "Equal", "Floor", "Greater",     "HardSigmoid",
+    "Selu",       "Less",  "PRelu", "Log",         "Or",
+    "Reciprocal", "Pow",   "Relu",  "Sigmoid",     "Softplus",
+    "Softsign",   "Sqrt",  "Sub",   "Tanh",        "Xor",
+    "Acos",       "Asin",  "Atan",  "Cos",         "Sin",
+    "Tan",        "Sinh",  "Cosh",  "Asinh",       "Acosh",
+    "Atanh",      "Sign",  "Erf",   "Mod",         "ThresholdedRelu",
+    "BitShift",   "Round", "Celu",  "LessOrEqual", "GreaterOrEqual",
+    "HardSwish",  "Clip"};
+
 std::unordered_map<std::string, OpTrait> OpTraitRegistry::opTraits;
 
 static OpTrait extractTrait(const onnx::OpSchema &schema) {
@@ -14,7 +27,7 @@ static OpTrait extractTrait(const onnx::OpSchema &schema) {
 
     // Element-wise
     auto npos = std::string::npos;
-    if (doc.find("elementwise") != npos || doc.find("element-wise") != npos)
+    if (Contains(ewOps, schema.Name()))
         trait = OpTrait(trait | OpTrait::ELEMENT_WISE);
 
     return trait;

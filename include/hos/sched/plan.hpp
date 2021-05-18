@@ -1,17 +1,33 @@
 #pragma once
 
 #include <hos/sched/life.hpp>
+#include <optional>
 
 namespace hos {
 
-struct MemoryPlan {
-    /// Peak memory footprint
-    uint64_t peak;
-    /// Spatial-temporal descriptor of values in memory
-    std::vector<MemoryDesc> descs;
-    /// Maps values to its offset
-    std::unordered_map<ValueRef, uint64_t> valToOff;
+/// Spatial-temporal descriptor of a value in memory
+struct MemoryDesc : public Lifetime {
+    static constexpr uint64_t OFFSET_UNKNOWN = UINT64_MAX;
+
+    /// Memory offset of this value
+    uint64_t offset = OFFSET_UNKNOWN;
+    /// Cached size of the value in bytes
+    uint64_t size;
+
+    explicit MemoryDesc(const Lifetime &life)
+        : Lifetime(life), size(life.value->type.Size()) {}
+
+    MemoryDesc(const MemoryDesc &desc) = default;
+
+    std::string Format() const {
+        return fmt::format("t[{}:{}] s[{}:{}] {}", gen, kill, offset,
+                           offset + size, value->name);
+    }
 };
+
+inline bool CmpBySizeRev(const MemoryDesc &lhs, const MemoryDesc &rhs) {
+    return lhs.size > rhs.size;
+}
 
 /// Abstraction of the packing status in container
 struct Step {
@@ -25,32 +41,40 @@ struct Step {
 
     int32_t End() const { return begin + width; }
 
+    bool CanPlace(const MemoryDesc &desc) const {
+        return begin <= desc.gen && End() >= desc.kill;
+    }
+
     std::string Format() const {
         return fmt::format("{}:{}@{}", begin, End(), offset);
     }
 };
 
-struct CmpByBegin {
-    bool operator()(const Step &lhs, const Step &rhs) const {
-        return lhs.begin < rhs.begin;
-    }
-};
+inline bool CmpByBegin(const Step &lhs, const Step &rhs) {
+    return lhs.begin < rhs.begin;
+}
+
+inline bool CmpByOffset(const Step &lhs, const Step &rhs) {
+    return lhs.offset < rhs.offset;
+}
 
 /// Contains rectangular items
 class Container {
 public:
-    Container(int32_t begin, int32_t end) : tBegin(begin), tEnd(end) {
+    Container(int32_t begin, int32_t end)
+        : tBegin(begin), tEnd(end), maxHeight(0) {
         steps.push_back({begin, end - begin, 0});
     }
 
     template <class Cmp>
-    const Step& FindMinBy(Cmp cmp) const {
-        return std::min_element(steps.begin(), steps.end(), cmp);
+    const Step &FindMinBy(Cmp cmp) const {
+        return ReduceMin(steps, cmp);
     }
 
-    /// Place a rectangular item in container, return whether the placement
-    /// succeeded.
-    bool Place(int32_t begin, int32_t width, uint64_t height);
+    uint64_t GetMaxHeight() const { return maxHeight; }
+
+    /// Place a memory block in container, return memory offset of the block.
+    uint64_t Place(int32_t begin, int32_t width, uint64_t height);
 
     /// Lift one step to merge it with the neighbor with lowest offset
     void Lift(int32_t time);
@@ -76,7 +100,30 @@ private:
     std::vector<Step> steps;
 };
 
+template <class Elem, class Pred, class Cmp>
+inline auto MinPosWithConstr(const std::vector<Elem> &vec, Pred pred, Cmp cmp) {
+    std::optional<std::vector<Elem>::const_iterator> minPos;
+    for (auto it = vec.begin(); it != vec.end(); it++) {
+        if (!pred(*it)) continue;
+        if (!minPos.has_value() || cmp(*it, *minPos.value())) minPos = it;
+    }
+    return minPos;
+}
+
+struct MemoryPlan {
+    /// Peak memory footprint
+    uint64_t peak;
+    /// Spatial-temporal descriptor of values in memory
+    std::vector<MemoryDesc> descs;
+    /// Maps values to its offset
+    std::unordered_map<ValueRef, uint64_t> valToOff;
+
+    MemoryPlan(uint64_t peak, const std::vector<MemoryDesc> &descs);
+
+    void Print() const;
+};
+
 /// Implement best-fit heuristic by Sekiyama et al.
-MemoryPlan BestFit(const std::vector<Lifetime> &lifetimes);
+MemoryPlan BestFit(const LifetimeStat &stat);
 
 };  // namespace hos

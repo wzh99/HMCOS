@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glog/logging.h>
+
 #include <iterator>
 #include <numeric>
 #include <sstream>
@@ -50,20 +52,34 @@ inline auto Accumulate(const Iterable &elems, BinOp binOp, Lhs init) {
 
 /// Vector Utility
 
-template <class ElemType>
-inline bool Contains(const std::vector<ElemType> &vec, const ElemType &elem) {
+template <class Elem>
+inline bool Contains(const std::vector<Elem> &vec, const Elem &elem) {
     return std::find(vec.begin(), vec.end(), elem) != vec.end();
 }
 
-template <class ElemType>
-inline void AddUnique(std::vector<ElemType> &vec, const ElemType &elem) {
+template <class Elem>
+inline void AddUnique(std::vector<Elem> &vec, const Elem &elem) {
     if (Contains(vec, elem)) return;
     vec.push_back(elem);
 }
 
-template <class ElemType>
-inline void Remove(std::vector<ElemType> &vec, const ElemType &val) {
+template <class Elem>
+inline void Remove(std::vector<Elem> &vec, const Elem &val) {
     vec.erase(std::remove(vec.begin(), vec.end(), val), vec.end());
+}
+
+template <class Elem, class Cmp>
+inline const Elem &ReduceMin(const std::vector<Elem> &vec, Cmp cmp) {
+    LOG_ASSERT(!vec.empty());
+    return *std::min_element(vec.begin(), vec.end(), cmp);
+}
+
+/// Set Utility
+
+template <class KeyType, class ValueType>
+inline bool Contains(const std::unordered_set<KeyType, ValueType> &map,
+                     const KeyType &elem) {
+    return map.find(elem) != map.end();
 }
 
 /// Map Utility
