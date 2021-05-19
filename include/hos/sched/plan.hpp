@@ -118,9 +118,13 @@ struct MemoryPlan {
     /// Maps values to its offset
     std::unordered_map<ValueRef, uint64_t> valToOff;
 
-    MemoryPlan(uint64_t peak, const std::vector<MemoryDesc> &descs);
-
+    /// Create a memory plan with peak and meory descriptors
+    MemoryPlan(uint64_t peak, std::vector<MemoryDesc> &&descs);
+    /// Print memory plan
     void Print() const;
+    /// Visualize memory plan with Matplotlib
+    void Visualize(const std::string &dir, const std::string &name,
+                   const std::string &format = "pdf");
 };
 
 /// Implement best-fit heuristic by Sekiyama et al.

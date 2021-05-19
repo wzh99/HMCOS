@@ -23,7 +23,7 @@ struct Lifetime {
 };
 
 inline bool CmpByGenKill(const Lifetime &lhs, const Lifetime &rhs) {
-    if (lhs.gen < rhs.gen) return lhs.gen < rhs.gen;
+    if (lhs.gen != rhs.gen) return lhs.gen < rhs.gen;
     return lhs.kill < rhs.kill;
 }
 

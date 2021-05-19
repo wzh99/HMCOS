@@ -1,4 +1,7 @@
+#include <filesystem>
+#include <fstream>
 #include <hos/sched/plan.hpp>
+#include <hos/util/viz.hpp>
 
 namespace hos {
 
@@ -108,8 +111,8 @@ void Container::tryMerge(size_t beginIdx, uint32_t nTrial) {
     }
 }
 
-MemoryPlan::MemoryPlan(uint64_t peak, const std::vector<MemoryDesc> &descs)
-    : peak(peak), descs(descs) {
+MemoryPlan::MemoryPlan(uint64_t peak, std::vector<MemoryDesc> &&descs)
+    : peak(peak), descs(std::move(descs)) {
     // Sort memory descriptors according to lifetime
     std::sort(this->descs.begin(), this->descs.end(), CmpByGenKill);
 
@@ -121,6 +124,15 @@ void MemoryPlan::Print() const {
     fmt::print("Peak: {}\n", peak);
     fmt::print("\nPlan: \n");
     for (auto &desc : descs) fmt::print("{}\n", desc.Format());
+}
+
+void MemoryPlan::Visualize(const std::string &dir, const std::string &name,
+                           const std::string &format) {
+    RectPlot plot(name);
+    for (auto &desc : descs)
+        plot.AddRect(float(desc.gen), float(desc.offset), float(desc.Length()),
+                     float(desc.size));
+    plot.Render(dir, format);
 }
 
 inline static std::vector<MemoryDesc> ltToDesc(
@@ -158,7 +170,7 @@ MemoryPlan BestFit(const LifetimeStat &stat) {
         unplaced.erase(bestFitPos.value());
     }
 
-    return MemoryPlan(cont.GetMaxHeight(), placed);
+    return MemoryPlan(cont.GetMaxHeight(), std::move(placed));
 }
 
 }  // namespace hos

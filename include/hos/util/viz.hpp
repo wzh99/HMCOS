@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fmt/core.h>
 #include <glog/logging.h>
 
 #include <filesystem>
@@ -8,6 +9,12 @@
 #include <unordered_map>
 
 namespace hos {
+
+#if defined(WIN32)
+#define DEFAULT_FONT "Segoe UI"
+#elif defined(__APPLE__)
+#define DEFAULT_FONT ".AppleSystemUIFont"
+#endif
 
 /// API for defining a directed graph in Graphviz DOT language.
 /// This class is just for visualization of computation graph in the project,
@@ -39,7 +46,6 @@ void DotCreator<NodeType>::AddNode(const NodeType &node,
 template <class NodeType>
 inline void DotCreator<NodeType>::AddEdge(const NodeType &tail,
                                           const NodeType &head) {
-    // Check if tail and head of directed edge have been added before
     if (!Contains(nodeIds, tail)) {
         LOG(ERROR) << "Tail node has not been added.";
         return;
@@ -48,16 +54,8 @@ inline void DotCreator<NodeType>::AddEdge(const NodeType &tail,
         LOG(ERROR) << "Head node has not been added.";
         return;
     }
-
-    // Add this edge
     edges.emplace_back(nodeIds[tail], nodeIds[head]);
 }
-
-#if defined(WIN32)
-#define DEFAULT_FONT "Segoe UI"
-#elif defined(__APPLE__)
-#define DEFAULT_FONT ".AppleSystemUIFont"
-#endif
 
 template <class NodeType>
 void DotCreator<NodeType>::Render(const std::string &dir,
@@ -99,5 +97,27 @@ void DotCreator<NodeType>::Render(const std::string &dir,
     if (ret != 0)
         LOG(ERROR) << fmt::format("Cannot compile source file {}", srcPath);
 }
+
+struct Rect {
+    /// Bottom-left coordinate (x, y) of the rectangle
+    std::pair<float, float> coord;
+    /// Width of the rectangle (X-axis)
+    float width;
+    /// Height of the rectangle (Y-axis)
+    float height;
+};
+
+/// Plot rectangles
+class RectPlot {
+public:
+    RectPlot(const std::string &name) : name(name) {}
+    void AddRect(float coordX, float coordY, float width, float height);
+    void Render(const std::string &dir, const std::string &format) const;
+
+private:
+    std::string name;
+    std::vector<Rect> rects;
+    float xMin = 0.f, xMax = 0.f, yMin = 0.f, yMax = 0.f;
+};
 
 }  // namespace hos
