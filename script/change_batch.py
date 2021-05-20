@@ -1,7 +1,7 @@
 import onnx
 from onnx import shape_inference
 
-model_name = 'nasnet_mobile'
+model_name = 'mobilebert'
 batch_size = 1
 
 

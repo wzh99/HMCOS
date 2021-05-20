@@ -1,9 +1,11 @@
+
 import onnx
 from onnx import shape_inference
 import onnxoptimizer as opt
 
-model_name = 'nasnet_mobile'
-prefix = "sequential/keras_layer/StatefulPartitionedCall/StatefulPartitionedCall/StatefulPartitionedCall/predict/"
+model_name = 'mobilebert'
+# prefix = "sequential/keras_layer/StatefulPartitionedCall/StatefulPartitionedCall/StatefulPartitionedCall/predict/"
+prefix = 'model/keras_layer/StatefulPartitionedCall/StatefulPartitionedCall/StatefulPartitionedCall/mobile_bert_encoder/StatefulPartitionedCall/'
 
 
 def short_name(name: str):
@@ -31,7 +33,7 @@ def process_value_names(graph: onnx.GraphProto):
         param.name = short_name(param.name)
 
 
-def remove_preproc(graph: onnx.GraphProto):
+def remove_cnn_preproc(graph: onnx.GraphProto):
     # Transpose input dims to NCHW
     inp = graph.input[0]
     dim = inp.type.tensor_type.shape.dim
@@ -50,7 +52,7 @@ def remove_preproc(graph: onnx.GraphProto):
 
 model = onnx.load(f'model/{model_name}.onnx')
 process_value_names(model.graph)
-remove_preproc(model.graph)
-model = opt.optimize(model, passes=['fuse_bn_into_conv'])
-model = shape_inference.infer_shapes(model, check_type=True, strict_mode=True)
+# remove_cnn_preproc(model.graph)
+# model = opt.optimize(model, passes=['fuse_bn_into_conv'])
+# model = shape_inference.infer_shapes(model, check_type=True, strict_mode=True)
 onnx.save_model(model, f'model/{model_name}.opt.onnx')

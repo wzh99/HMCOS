@@ -16,16 +16,16 @@ int main(int argc, char const *argv[]) {
     OpTraitRegistry::Init();
 
     // Read ONNX model
-    std::ifstream ifs("../../model/nasnet_mobile.onnx", std::ifstream::binary);
+    std::ifstream ifs("../../model/mobilebert.onnx", std::ifstream::binary);
     auto model = std::make_unique<onnx::ModelProto>();
     model->ParseFromIstream(&ifs);
 
     // Build graph and create schedule
-    Graph graph(std::move(model), "nasnet_mobile");
+    Graph graph(std::move(model), "mobilebert");
     auto sched = ReversePostOrder(graph);
     auto stat = ComputeLifetime(sched, graph);
     auto plan = BestFit(stat);
-    plan.Visualize("../../out", "nasnet_mobile-rpo-best_fit");
+    plan.Visualize("../../out", "mobilebert-rpo-best_fit");
     plan.Print();
     
     return 0;

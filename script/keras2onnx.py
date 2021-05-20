@@ -1,8 +1,9 @@
 import tensorflow as tf
 from tf2onnx import convert
 import tensorflow_hub as hub
+import tf2onnx
 
-batch_size = 16
+batch_size = 1
 image_shape_nchw = (3, 224, 224)
 image_shape_nhwc = (224, 224, 3)
 seq_len = 128
@@ -37,15 +38,16 @@ def transformer_to_onnx(url: str, name: str):
     )
     out = encoder(encoder_inputs)
     model = tf.keras.Model(
-        inputs=[input_word_ids, input_mask, input_type_ids], outputs=out['sequence_output'])
+        inputs=[input_type_ids, input_word_ids, input_mask], outputs=out['sequence_output'])
     input_sig = [
-        tf.TensorSpec((batch_size, seq_len), tf.int32),
-        tf.TensorSpec((batch_size, seq_len), tf.int32),
-        tf.TensorSpec((batch_size, seq_len), tf.int32),
+        tf.TensorSpec((batch_size, seq_len), tf.int32, name='input_type_ids'),
+        tf.TensorSpec((batch_size, seq_len), tf.int32, name='input_word_ids'),
+        tf.TensorSpec((batch_size, seq_len), tf.int32, name='input_mask'),
     ]
+    import numpy as np
     convert.from_keras(model, input_signature=input_sig,
                        output_path=f'model/{name}.onnx', opset=12)
 
 
-# transformer_to_onnx('https://tfhub.dev/tensorflow/mobilebert_en_uncased_L-24_H-128_B-512_A-4_F-4_OPT/1', 'mobilebert')
+transformer_to_onnx('https://tfhub.dev/tensorflow/mobilebert_en_uncased_L-24_H-128_B-512_A-4_F-4_OPT/1', 'mobilebert')
 # transformer_to_onnx('https://hub.tensorflow.google.cn/tensorflow/albert_en_base/3', 'albert')
