@@ -32,6 +32,10 @@ inline bool CmpByLength(const Lifetime &lhs, const Lifetime &rhs) {
     return ll != rl ? ll < rl : CmpByGenKill(lhs, rhs);
 }
 
+inline bool CmpByLengthRev(const Lifetime &lhs, const Lifetime &rhs) {
+    return CmpByLength(rhs, lhs);
+}
+
 /// Lifetime statistics of all values in a computation graph
 struct LifetimeStat {
     /// Lifetime limit of values

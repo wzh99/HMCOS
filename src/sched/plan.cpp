@@ -155,7 +155,7 @@ MemoryPlan BestFit(const LifetimeStat &stat) {
         // Find best fit for this step
         auto bestFitPos = MinPosWithConstr(
             unplaced, [&](auto &desc) { return step.CanPlace(desc); },
-            CmpBySizeRev);
+            CmpByLengthRev);
 
         // Lift this step if no block can be placed
         if (!bestFitPos.has_value()) {
