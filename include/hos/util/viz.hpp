@@ -80,9 +80,8 @@ void DotCreator<NodeType>::Render(const std::string &dir,
         writer.WriteLn(nodeAttr);
 
         // Write nodes
-        for (auto &[node, id] : nodeIds)
-            writer.WriteLn(
-                fmt::format("{} [label=\"{}\"]", id, nodeLabels[id]));
+        for (auto i = 0u; i < nodeLabels.size(); i++)
+            writer.WriteLn(fmt::format("{} [label=\"{}\"]", i, nodeLabels[i]));
 
         // Write edges
         for (auto &[tail, head] : edges)
