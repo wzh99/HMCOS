@@ -5,10 +5,9 @@
 
 namespace hos {
 
-Graph::Graph(std::unique_ptr<onnx::ModelProto> &&model, const std::string &name)
-    : model(std::move(model)) {
+Graph::Graph(const onnx::ModelProto &model, const std::string &name) {
     // Create name of this graph
-    auto &graph = this->model->graph();
+    auto &graph = model.graph();
     this->name = name.size() == 0 ? graph.name() : name;
 
     // Build name-value map
@@ -64,10 +63,6 @@ Graph::Graph(std::unique_ptr<onnx::ModelProto> &&model, const std::string &name)
     }
 
     // Connect vertices
-    connectVerts();
-}
-
-void Graph::connectVerts() {
     for (auto &op : ops) {
         for (auto &in : op->inputs) {
             if (in->kind == ValueKind::PARAM) continue;
@@ -119,7 +114,7 @@ void Graph::Visualize(const std::string &dir, const std::string &format) const {
 
     // Add vertices
     for (auto &in : inputs) creator.AddNode(in, in->value->name);
-    for (auto &op : ops) creator.AddNode(op, op->GetType());
+    for (auto &op : ops) creator.AddNode(op, op->type);
     for (auto &out : outputs) creator.AddNode(out, out->value->name);
 
     // Add edges

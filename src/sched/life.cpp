@@ -12,7 +12,7 @@ static uint32_t overlapInput(const OpRef &op) {
     auto &out = op->outputs[0];
 
     // Check if it is element-wise
-    if (OpTraitRegistry::Match(op->GetType(), OpTrait::ELEMENT_WISE)) {
+    if (OpTraitRegistry::Match(op->type, OpTrait::ELEMENT_WISE)) {
         // Output of op with single input can always overlap this input
         if (op->inputs.size() == 1) return 0;
 

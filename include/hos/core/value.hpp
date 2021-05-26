@@ -3,6 +3,7 @@
 #include <onnx/onnx_pb.h>
 
 #include <hos/core/rtti.hpp>
+#include <hos/util/util.hpp>
 
 namespace hos {
 
@@ -36,13 +37,12 @@ struct TensorType {
     static TensorType FromTensor(const onnx::TensorProto &tensor);
     static TensorType FromType(const onnx::TypeProto_Tensor &type);
 
+    /// Number of elements in this tensor
+    uint64_t Count() const;
+    /// Size of this tensor in memory
     uint64_t Size() const;
 
     bool operator==(const TensorType &other) const;
-    
-    bool operator!=(const TensorType &other) const {
-        return !operator==(other);
-    }
 };
 
 enum class ValueKind {
@@ -72,7 +72,7 @@ struct Value {
     /// Valid for input. Stores shared pointer to corresponding input vertex.
     InputRef input;
     /// Valid for parameter. Stores pointer to tensor data.
-    const onnx::TensorProto *data = nullptr;
+    std::vector<uint8_t> data;
     /// Valid for result. Stores shared pointer to op which defines this value.
     OpRef def = nullptr;
     /// Valid for result. Stores shared pointers to ops that use (take as input)

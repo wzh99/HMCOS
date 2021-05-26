@@ -36,15 +36,54 @@ static uint64_t scalarSize[] = {
     sizeof(double),
     sizeof(uint32_t),
     sizeof(uint64_t),
-    8,   // complex64
-    16,  // complex128
-    2,   // bfloat16
+    2 * sizeof(float),   // complex64
+    2 * sizeof(double),  // complex128
+    2,                   // bfloat16
 };
 
-uint64_t TensorType::Size() const {
-    auto nElem = Accumulate(shape, std::multiplies<int64_t>(), 1ll);
-    return uint64_t(nElem) * scalarSize[dtype];
+#define GET_DATA_FUNC(field)                                      \
+    [](const onnx::TensorProto &t) {                              \
+        return std::make_pair(                                    \
+            reinterpret_cast<const uint8_t *>(t.field().begin()), \
+            reinterpret_cast<const uint8_t *>(t.field().end()));  \
+    }
+
+static std::pair<const uint8_t *, const uint8_t *> (*getDataFuncs[17])(
+    const onnx::TensorProto &) = {
+    nullptr,                     // undefined
+    GET_DATA_FUNC(float_data),   // float32
+    GET_DATA_FUNC(int32_data),   // uint8
+    GET_DATA_FUNC(int32_data),   // int8
+    GET_DATA_FUNC(int32_data),   // uint16
+    GET_DATA_FUNC(int32_data),   // int16
+    GET_DATA_FUNC(int32_data),   // int32
+    GET_DATA_FUNC(int64_data),   // int64
+    nullptr,                     // string
+    GET_DATA_FUNC(int32_data),   // bool
+    GET_DATA_FUNC(int32_data),   // float16
+    GET_DATA_FUNC(double_data),  // float64
+    GET_DATA_FUNC(uint64_data),  // uint32
+    GET_DATA_FUNC(uint64_data),  // uint64
+    GET_DATA_FUNC(float_data),   // complex64
+    GET_DATA_FUNC(double_data),  // complex128
+    GET_DATA_FUNC(int32_data)    // bfloat16
+};
+
+static std::vector<uint8_t> getTensorData(const onnx::TensorProto &tensor) {
+    auto func = getDataFuncs[tensor.data_type()];
+    if (!func) {
+        LOG(FATAL) << fmt::format("Cannot get tensor data of type {}",
+                                  FmtDataType(tensor.data_type()));
+    }
+    auto [begin, end] = func(tensor);
+    return std::vector<uint8_t>(begin, end);
 }
+
+uint64_t TensorType::Count() const {
+    return uint64_t(Accumulate(shape, std::multiplies<int64_t>(), 1ll));
+}
+
+uint64_t TensorType::Size() const { return Count() * scalarSize[dtype]; }
 
 bool TensorType::operator==(const TensorType &other) const {
     if (this->dtype != other.dtype) return false;
@@ -75,7 +114,7 @@ Value Value::CreateParam(const onnx::TensorProto &tensor) {
     value.kind = ValueKind::PARAM;
     value.name = tensor.name();
     value.type = TensorType::FromTensor(tensor);
-    value.data = &tensor;
+    value.data = getTensorData(tensor);
     return value;
 }
 

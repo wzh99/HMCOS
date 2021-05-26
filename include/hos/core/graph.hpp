@@ -62,22 +62,21 @@ struct Output : public Vertex {
 using OutputRef = std::shared_ptr<Output>;
 
 struct Op : Vertex {
-    /// `NodeProto` pointer in ONNX graph
-    const onnx::NodeProto *node;
+    /// Name of this op
+    std::string name;
+    /// Type name of this op
+    std::string type;
     /// Input and output values of this operator
     std::vector<ValueRef> inputs, outputs;
 
-    Op(const onnx::NodeProto *node) : node(node) {}
-
-    const std::string &GetType() const { return node->op_type(); }
+    Op(const onnx::NodeProto *node) : name(node->name()), type(node->op_type()) {}
 
     static constexpr auto classKind = VertexKind::OP;
 
     VertexKind GetKind() const override { return VertexKind::OP; }
 };
 
-class Graph {
-public:
+struct Graph {
     // Name of this graph
     std::string name;
     /// Input vertices of the graph
@@ -93,8 +92,7 @@ public:
     /// Note that the constructor assumes that all intermediates in model are
     /// type-checked and their types are stored in `value_info` field of graph.
     /// Otherwise the constructor will panic.
-    Graph(std::unique_ptr<onnx::ModelProto> &&model,
-          const std::string &name = "");
+    Graph(const onnx::ModelProto &model, const std::string &name = "");
 
     /// Traverse the graph in reverse post-order.
     /// This method is suitable for simple traversal that does not depend on
@@ -107,13 +105,6 @@ public:
     /// not appear in the visualization.
     void Visualize(const std::string &dir,
                    const std::string &format = "pdf") const;
-
-private:
-    void connectVerts();
-
-    /// Owns the ONNX model so that all pointers or references to objects in it
-    /// remain valid
-    std::unique_ptr<onnx::ModelProto> model;
 };
 
 template <class Ret, class... Args>

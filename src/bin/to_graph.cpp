@@ -10,13 +10,13 @@ int main(int argc, char const *argv[]) {
     google::InitGoogleLogging(argv[0]);
 
     // Build computation graph from ONNX model
-    std::ifstream ifs("../model/mobilenet_v2.onnx", std::ifstream::binary);
-    auto model = std::make_unique<onnx::ModelProto>();
-    model->ParseFromIstream(&ifs);
-    Graph graph(std::move(model), "mobilenet_v2");
+    std::ifstream ifs("../../model/mobilebert.onnx", std::ifstream::binary);
+    onnx::ModelProto model;
+    model.ParseFromIstream(&ifs);
+    Graph graph(model, "mobilebert");
 
     // Visualize graph
-    graph.Visualize("../out");
+    graph.Visualize("../../out");
 
     return 0;
 }

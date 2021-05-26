@@ -9,23 +9,24 @@ using namespace hos;
 
 int main(int argc, char const *argv[]) {
     // Initialize glog
-    FLAGS_logtostderr = true;
+    google::LogToStderr();
     google::InitGoogleLogging(argv[0]);
 
     // Initialize op trait
     OpTraitRegistry::Init();
 
     // Read ONNX model
-    std::ifstream ifs("../../model/mobilebert.onnx", std::ifstream::binary);
-    auto model = std::make_unique<onnx::ModelProto>();
-    model->ParseFromIstream(&ifs);
+    std::ifstream ifs("../../model/inception_v3.onnx", std::ifstream::binary);
+    onnx::ModelProto model;
+    model.ParseFromIstream(&ifs);
+    ifs.close();
 
     // Build graph and create schedule
-    Graph graph(std::move(model), "mobilebert");
+    Graph graph(model, "inception_v3");
     auto sched = ReversePostOrder(graph);
     auto stat = ComputeLifetime(sched, graph);
     auto plan = BestFit(stat);
-    plan.Visualize("../../out", "mobilebert-rpo-best_fit");
+    plan.Visualize("../../out", "inception_v3-rpo-best_fit");
     plan.Print();
     
     return 0;
