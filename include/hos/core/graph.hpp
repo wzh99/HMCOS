@@ -6,18 +6,19 @@
 namespace hos {
 
 struct Vertex {
-    /// Predecessors and successors of vertex
+    /// Predecessor list of vertex
     /// All elements in predecessor or successor list must be distinct.
     /// (Multi-edges are not allowed)
-    std::vector<VertexRef> preds, succs;
+    std::vector<VertexRef> preds;
+    std::vector<std::weak_ptr<Vertex>> succs;
 
     static void Connect(const VertexRef &tail, const VertexRef &head) {
-        AddUnique(tail->succs, head);
+        AddUnique(tail->succs, std::weak_ptr(head));
         AddUnique(head->preds, tail);
     }
 
     static void Disconnect(const VertexRef &tail, const VertexRef &head) {
-        Remove(tail->succs, head);
+        Remove(tail->succs, std::weak_ptr(head));
         Remove(head->preds, tail);
     }
 
@@ -28,9 +29,6 @@ struct Vertex {
     };
 
     virtual VertexKind GetKind() const = 0;
-
-protected:
-    Vertex() = default;
 };
 
 struct Input : public Vertex {
@@ -45,6 +43,8 @@ struct Input : public Vertex {
 
     VertexKind GetKind() const override { return VertexKind::INPUT; }
 };
+
+using InputRef = std::shared_ptr<Input>;
 
 struct Output : public Vertex {
     /// Value that this vertex corresponds to
@@ -69,14 +69,20 @@ struct Op : Vertex {
     /// Input and output values of this operator
     std::vector<ValueRef> inputs, outputs;
 
-    Op(const onnx::NodeProto *node) : name(node->name()), type(node->op_type()) {}
+    Op(const onnx::NodeProto *node)
+        : name(node->name()), type(node->op_type()) {}
+
+    Op(const Op &other) : name(other.name), type(other.type) {}
 
     static constexpr auto classKind = VertexKind::OP;
 
     VertexKind GetKind() const override { return VertexKind::OP; }
 };
 
-struct Graph {
+using OpRef = std::shared_ptr<Op>;
+
+class Graph {
+public:
     // Name of this graph
     std::string name;
     /// Input vertices of the graph
@@ -87,6 +93,8 @@ struct Graph {
     std::vector<ValueRef> params;
     /// All operators in graph
     std::vector<OpRef> ops;
+
+    Graph() = default;
 
     /// Create a graph from ONNX model.
     /// Note that the constructor assumes that all intermediates in model are
@@ -100,11 +108,23 @@ struct Graph {
     /// using `GraphVisitor`.
     void Traverse(const std::function<void(const VertexRef &)> &func) const;
 
+    /// Clone this graph.
+    /// All vertices and values in this graph will be cloned, not
+    /// reference-copied.
+    Graph Clone() const;
+
+    /// Extract a subgraph of this graph.
+    Graph Subgraph(std::function<void(OpRef)> isOutput,
+                   const std::string &subName) const;
+
     /// Visualize vertices and edges in the graph.
     /// Vertices are connected according to their def-use relations. Values will
     /// not appear in the visualization.
     void Visualize(const std::string &dir,
                    const std::string &format = "pdf") const;
+
+    /// Connect vertices according to their def-use relations
+    void ConnectVerts();
 };
 
 template <class Ret, class... Args>
@@ -130,7 +150,9 @@ public:
             default:
                 LOG(FATAL) << "Unreachable.";
         }
-        return ret;
+
+        memo.insert({vert, ret});
+        return vert;
     }
 
     virtual Ret VisitInput(const InputRef &input, Args... args) = 0;
@@ -141,6 +163,16 @@ protected:
     std::unordered_map<VertexRef, Ret> memo;
 };
 
-using GraphRef = std::shared_ptr<Graph>;
+class VertexCloner : public GraphVisitor<VertexRef> {
+public:
+    VertexRef VisitInput(const InputRef &input) override;
+    VertexRef VisitOutput(const OutputRef &output) override;
+    VertexRef VisitOp(const OpRef &op) override;
+
+    virtual ValueRef VisitValue(const ValueRef &value);
+
+protected:
+    std::unordered_map<ValueRef, ValueRef> valueMap;
+};
 
 }  // namespace hos

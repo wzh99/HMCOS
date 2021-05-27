@@ -16,18 +16,16 @@ int main(int argc, char const *argv[]) {
     OpTraitRegistry::Init();
 
     // Read ONNX model
-    std::ifstream ifs("../../model/inception_v3.onnx", std::ifstream::binary);
+    std::ifstream ifs("../../model/nasnet_mobile.onnx", std::ifstream::binary);
     onnx::ModelProto model;
     model.ParseFromIstream(&ifs);
     ifs.close();
 
     // Build graph and create schedule
-    Graph graph(model, "inception_v3");
+    Graph graph(model, "nasnet_mobile");
     auto sched = ReversePostOrder(graph);
     auto stat = ComputeLifetime(sched, graph);
-    auto plan = BestFit(stat);
-    plan.Visualize("../../out", "inception_v3-rpo-best_fit");
-    plan.Print();
+    fmt::print("Peak: {}\n", stat.Peak());
     
     return 0;
 }

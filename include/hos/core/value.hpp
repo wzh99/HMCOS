@@ -57,8 +57,6 @@ enum class ValueKind {
 struct Op;
 struct Input;
 struct Vertex;
-using OpRef = std::shared_ptr<Op>;
-using InputRef = std::shared_ptr<Input>;
 using VertexRef = std::shared_ptr<Vertex>;
 
 struct Value {
@@ -70,22 +68,33 @@ struct Value {
     /// Kind-specific fields.
 
     /// Valid for input. Stores shared pointer to corresponding input vertex.
-    InputRef input;
+    std::weak_ptr<Input> input;
     /// Valid for parameter. Stores pointer to tensor data.
     std::vector<uint8_t> data;
     /// Valid for result. Stores shared pointer to op which defines this value.
-    OpRef def = nullptr;
+    std::weak_ptr<Op> def;
     /// Valid for result. Stores shared pointers to ops that use (take as input)
     /// this value. An op may appear multiple times if it uses this value more
     /// than once.
-    std::vector<OpRef> uses;
+    std::vector<std::weak_ptr<Op>> uses;
 
     static Value CreateInput(const onnx::ValueInfoProto &info);
     static Value CreateParam(const onnx::TensorProto &tensor);
     static Value CreateResult(const onnx::ValueInfoProto &info);
 
+    Value() = default;
+
+    /// Clone from a value
+    /// Usually used in vertex cloning, so all weak references to graph vertices
+    /// are not copied.
+    Value(const Value &other)
+        : kind(other.kind),
+          name(other.name),
+          type(other.type),
+          data(other.data) {}
+
     /// Return the vertex in graph where this value is defined.
-    VertexRef GetVertex() const;
+    VertexRef Vertex() const;
 };
 
 using ValueRef = std::shared_ptr<Value>;

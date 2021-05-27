@@ -118,11 +118,11 @@ Value Value::CreateParam(const onnx::TensorProto &tensor) {
     return value;
 }
 
-VertexRef Value::GetVertex() const {
+VertexRef Value::Vertex() const {
     if (kind == ValueKind::INPUT)
-        return input;
+        return input.lock();
     else if (kind == ValueKind::RESULT)
-        return def;
+        return def.lock();
     else
         LOG(FATAL) << "Parameter value does not have corresponding vertex.";
 }

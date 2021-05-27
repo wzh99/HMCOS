@@ -63,13 +63,17 @@ Graph::Graph(const onnx::ModelProto &model, const std::string &name) {
     }
 
     // Connect vertices
+    ConnectVerts();
+}
+
+void Graph::ConnectVerts() {
     for (auto &op : ops) {
         for (auto &in : op->inputs) {
             if (in->kind == ValueKind::PARAM) continue;
-            Vertex::Connect(in->GetVertex(), op);
+            Vertex::Connect(in->Vertex(), op);
         }
     }
-    for (auto &out : outputs) Vertex::Connect(out->value->def, out);
+    for (auto &out : outputs) Vertex::Connect(out->value->def.lock(), out);
 }
 
 struct StackRecord {
@@ -106,6 +110,89 @@ void Graph::Traverse(const std::function<void(const VertexRef &)> &func) const {
         for (auto iter = preds.rbegin(); iter != preds.rend(); iter++)
             stack.push_back({*iter, false});
     }
+}
+
+VertexRef VertexCloner::VisitInput(const InputRef &input) {
+    auto newVal = VisitValue(input->value);
+    auto newInput = std::make_shared<Input>(newVal);
+    newVal->input = newInput;
+    return newInput;
+}
+
+VertexRef VertexCloner::VisitOutput(const OutputRef &output) {
+    auto &val = output->value;
+    auto newVal = VisitValue(val);
+    Visit(val->Vertex());
+    return std::make_shared<Output>(newVal);
+}
+
+VertexRef VertexCloner::VisitOp(const OpRef &op) {
+    auto newOp = std::make_shared<Op>(*op);
+    for (auto &in : op->inputs) {
+        auto newIn = VisitValue(in);
+        newOp->inputs.push_back(newIn);
+        newIn->uses.push_back(newOp);
+        if (in->kind != ValueKind::PARAM) Visit(in->Vertex());
+    }
+    for (auto &out : op->outputs) {
+        auto newOut = VisitValue(out);
+        newOp->outputs.push_back(newOut);
+        newOut->def = newOp;
+    }
+    return newOp;
+}
+
+ValueRef VertexCloner::VisitValue(const ValueRef &value) {
+    if (Contains(valueMap, value)) return valueMap[value];
+    auto newVal = std::make_shared<Value>(*value);
+    valueMap.insert({value, newVal});
+    return newVal;
+}
+
+class GraphCloner : public VertexCloner {
+public:
+    GraphCloner(const Graph &src, Graph &dst) : src(src), dst(dst) {}
+
+    void Clone() {
+        dst.name = src.name;
+        for (auto &out : src.outputs) Visit(out);
+        dst.ConnectVerts();
+    }
+
+    VertexRef VisitInput(const InputRef &input) override {
+        auto newInput = VertexCloner::VisitInput(input);
+        dst.inputs.push_back(As<Input>(newInput));
+        return newInput;
+    }
+
+    VertexRef VisitOutput(const OutputRef &output) override {
+        auto newOutput = VertexCloner::VisitOutput(output);
+        dst.outputs.push_back(As<Output>(newOutput));
+        return newOutput;
+    }
+
+    VertexRef VisitOp(const OpRef &op) override {
+        auto newOp = VertexCloner::VisitOp(op);
+        dst.ops.push_back(As<Op>(newOp));
+        return op;
+    }
+
+    ValueRef VisitValue(const ValueRef &value) override {
+        if (Contains(valueMap, value)) return valueMap[value];
+        auto newVal = VertexCloner::VisitValue(value);
+        if (newVal->kind == ValueKind::PARAM) dst.params.push_back(newVal);
+        return newVal;
+    }
+
+protected:
+    const Graph &src;
+    Graph &dst;
+};
+
+Graph Graph::Clone() const {
+    Graph dst;
+    GraphCloner(*this, dst).Clone();
+    return dst;
 }
 
 void Graph::Visualize(const std::string &dir, const std::string &format) const {

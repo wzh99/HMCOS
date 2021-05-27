@@ -10,6 +10,13 @@
 
 namespace hos {
 
+/// Smart Pointer Utility
+template <class Elem>
+inline bool operator==(const std::weak_ptr<Elem> &lhs, const std::weak_ptr<Elem> &rhs) {
+    if (lhs.expired() || rhs.expired()) return false;
+    return lhs.lock() == rhs.lock();
+}
+
 /// String Utility
 
 template <class StrIterable>
@@ -66,6 +73,11 @@ inline void AddUnique(std::vector<Elem> &vec, const Elem &elem) {
 template <class Elem>
 inline void Remove(std::vector<Elem> &vec, const Elem &val) {
     vec.erase(std::remove(vec.begin(), vec.end(), val), vec.end());
+}
+
+template <class Elem, class Pred>
+inline void RemoveIf(std::vector<Elem> &vec, Pred pred) {
+    vec.erase(std::remove_if(vec.begin(), vec.end(), pred), vec.end());
 }
 
 template <class Elem, class Cmp>
