@@ -37,11 +37,21 @@ inline bool CmpByLengthRev(const Lifetime &lhs, const Lifetime &rhs) {
 }
 
 /// Lifetime statistics of all values in a computation graph
-struct LifetimeStat {
+class LifetimeStat {
+public:
     /// Lifetime limit of values
     int32_t begin, end;
     /// Lifetimes of each value
-    std::vector<Lifetime> values;
+    std::vector<Lifetime> blocks;
+
+    /// Get memory histogram in [begin, end)
+    std::vector<uint64_t> Histogram() const;
+    /// Get peak memory usage
+    uint64_t Peak() const;
+
+private:
+    /// Count memory usage in [begin, end)
+    void count(std::function<void(uint64_t)> callback) const;
 };
 
 LifetimeStat ComputeLifetime(const OpSeq &opSeq, const Graph &graph);

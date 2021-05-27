@@ -1,3 +1,4 @@
+#include <deque>
 #include <hos/sched/life.hpp>
 #include <hos/util/op.hpp>
 
@@ -64,8 +65,8 @@ LifetimeStat ComputeLifetime(const OpSeq &opSeq, const Graph &graph) {
             auto &cnt = useCnt[in];
             cnt--;
             // If output can overlap this input, its life ends before this op.
-            // Otherwise, it must keep alive until computation of this op
-            // finishes.
+            // Otherwise, it must keep alive until computation of this op is
+            // finished.
             if (cnt == 0) {
                 valLife[in].kill = ovlIdx == j ? i : i + 1;
                 useCnt.erase(in);
@@ -78,11 +79,47 @@ LifetimeStat ComputeLifetime(const OpSeq &opSeq, const Graph &graph) {
     for (auto &out : graph.outputs) valLife[out->value].kill = endTime;
 
     // Sort lifetime
-    auto values = Transform<std::vector<Lifetime> >(
+    auto blocks = Transform<std::vector<Lifetime>>(
         valLife, [](auto &p) { return p.second; });
-    std::sort(values.begin(), values.end(), CmpByGenKill);
+    std::sort(blocks.begin(), blocks.end(), CmpByGenKill);
 
-    return {Lifetime::TIME_INPUT, endTime, std::move(values)};
+    return {Lifetime::TIME_INPUT, endTime, std::move(blocks)};
+}
+
+std::vector<uint64_t> LifetimeStat::Histogram() const {
+    std::vector<uint64_t> usage;
+    count([&](auto total) { usage.push_back(total); });
+    return usage;
+}
+
+uint64_t hos::LifetimeStat::Peak() const {
+    uint64_t peak = 0;
+    count([&](auto total) { peak = std::max(peak, total); });
+    return peak;
+}
+
+void hos::LifetimeStat::count(std::function<void(uint64_t)> callback) const {
+    // Initialization
+    uint64_t total = 0;
+    std::vector<const Lifetime *> aliveBlocks;
+    size_t genIdx = 0;
+
+    // Iterate each time to find total memory usage
+    for (auto t = begin; t < end; t++) {
+        while (genIdx < blocks.size() && blocks[genIdx].gen == t) {
+            aliveBlocks.push_back(&blocks[genIdx]);
+            total += blocks[genIdx].value->type.Size();
+            genIdx++;
+        }
+        RemoveIf(aliveBlocks, [&](const Lifetime *block) {
+            if (block->kill == t) {
+                total -= block->value->type.Size();
+                return true;
+            } else
+                return false;
+        });
+        callback(total);
+    }
 }
 
 }  // namespace hos

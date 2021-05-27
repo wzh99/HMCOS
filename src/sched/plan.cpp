@@ -143,7 +143,7 @@ inline static std::vector<MemoryDesc> ltToDesc(
 
 MemoryPlan BestFit(const LifetimeStat &stat) {
     // Initialize unplaced memory descriptors and container
-    auto unplaced = ltToDesc(stat.values);
+    auto unplaced = ltToDesc(stat.blocks);
     Container cont(stat.begin, stat.end);
 
     // Iterate until no blocks remain
