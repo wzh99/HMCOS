@@ -23,9 +23,20 @@ int main(int argc, char const *argv[]) {
 
     // Build graph and create schedule
     Graph graph(model, "nasnet_mobile");
-    auto sched = ReversePostOrder(graph);
-    auto stat = ComputeLifetime(sched, graph);
-    fmt::print("Peak: {}\n", stat.Peak());
-    
+    graph = graph.Subgraph(
+        [](const OpRef &op) {
+            return op->name == "NASNet/cell_stem_0/cell_output/concat" ||
+                   op->name == "NASNet/cell_stem_1/concat";
+        },
+        "nasnet_block");
+    BruteForceSearch(
+        graph,
+        [&](const OpSeq &seq) {
+            return double(ComputeLifetime(seq, graph).Peak());
+        },
+        [&](const OpSeq &seq, double metric) { 
+            fmt::print("{}\n", metric); 
+        });
+
     return 0;
 }
