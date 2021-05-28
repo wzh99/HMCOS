@@ -81,8 +81,7 @@ struct Op : Vertex {
 
 using OpRef = std::shared_ptr<Op>;
 
-class Graph {
-public:
+struct Graph {
     // Name of this graph
     std::string name;
     /// Input vertices of the graph
@@ -106,7 +105,7 @@ public:
     /// This method is suitable for simple traversal that does not depend on
     /// results of predecessors. If results of predecessors are needed, consider
     /// using `GraphVisitor`.
-    void Traverse(const std::function<void(const VertexRef &)> &func) const;
+    void Traverse(std::function<void(const VertexRef &)> func) const;
 
     /// Clone this graph.
     /// All vertices and values in this graph will be cloned, not
@@ -114,7 +113,7 @@ public:
     Graph Clone() const;
 
     /// Extract a subgraph of this graph.
-    Graph Subgraph(std::function<void(OpRef)> isOutput,
+    Graph Subgraph(std::function<bool(const OpRef &)> isOutput,
                    const std::string &subName) const;
 
     /// Visualize vertices and edges in the graph.
@@ -128,13 +127,11 @@ public:
 };
 
 template <class Ret, class... Args>
-class GraphVisitor {
+class VertexVisitor {
 public:
     virtual Ret Visit(const VertexRef &vert, Args... args) {
         using Kind = Vertex::VertexKind;
-
         if (Contains(memo, vert)) return memo[vert];
-
         Ret ret;
         switch (vert->GetKind()) {
             case Kind::INPUT:
@@ -150,9 +147,8 @@ public:
             default:
                 LOG(FATAL) << "Unreachable.";
         }
-
         memo.insert({vert, ret});
-        return vert;
+        return ret;
     }
 
     virtual Ret VisitInput(const InputRef &input, Args... args) = 0;
@@ -163,7 +159,7 @@ protected:
     std::unordered_map<VertexRef, Ret> memo;
 };
 
-class VertexCloner : public GraphVisitor<VertexRef> {
+class VertexCloner : public VertexVisitor<VertexRef> {
 public:
     VertexRef VisitInput(const InputRef &input) override;
     VertexRef VisitOutput(const OutputRef &output) override;

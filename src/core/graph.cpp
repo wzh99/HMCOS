@@ -73,7 +73,7 @@ void Graph::ConnectVerts() {
             Vertex::Connect(in->Vertex(), op);
         }
     }
-    for (auto &out : outputs) Vertex::Connect(out->value->def.lock(), out);
+    for (auto &out : outputs) Vertex::Connect(out->value->Vertex(), out);
 }
 
 struct StackRecord {
@@ -81,7 +81,7 @@ struct StackRecord {
     bool visited;
 };
 
-void Graph::Traverse(const std::function<void(const VertexRef &)> &func) const {
+void Graph::Traverse(std::function<void(const VertexRef &)> func) const {
     // Initialize stack
     std::vector<StackRecord> stack;
     std::unordered_set<VertexRef> traversed;
@@ -193,6 +193,81 @@ Graph Graph::Clone() const {
     Graph dst;
     GraphCloner(*this, dst).Clone();
     return dst;
+}
+
+class SubgraphExtractor : public VertexVisitor<VertexRef, bool> {
+public:
+    SubgraphExtractor(const Graph &src, Graph &dst,
+                      std::function<bool(OpRef)> isOutput)
+        : src(src), dst(dst), isOutput(isOutput) {}
+
+    void Extract() {
+        for (auto &out : src.outputs) Visit(out, false);
+        dst.ConnectVerts();
+    }
+
+    VertexRef VisitInput(const InputRef &input, bool inGraph) override {
+        if (!inGraph) return nullptr;
+        auto newVal = VisitValue(input->value);
+        auto newInput = std::make_shared<Input>(newVal);
+        newVal->input = newInput;
+        dst.inputs.push_back(newInput);
+        return newInput;
+    }
+
+    VertexRef VisitOutput(const OutputRef &output, bool) override {
+        Visit(output->value->Vertex(), false);
+        return nullptr;
+    }
+
+    VertexRef VisitOp(const OpRef &op, bool inGraph) override {
+        auto isOut = this->isOutput(op);
+        inGraph |= isOut;
+        if (inGraph) {
+            auto newOp = std::make_shared<Op>(*op);
+            dst.ops.push_back(newOp);
+            for (auto &in : op->inputs) {
+                auto newIn = VisitValue(in);
+                newOp->inputs.push_back(newIn);
+                newIn->uses.push_back(newOp);
+                if (in->kind != ValueKind::PARAM) Visit(in->Vertex(), true);
+            }
+            for (auto &out : op->outputs) {
+                auto newOut = VisitValue(out);
+                newOp->outputs.push_back(newOut);
+                newOut->def = newOp;
+                if (isOut)
+                    dst.outputs.push_back(std::make_shared<Output>(newOut));
+            }
+            return newOp;
+        } else {
+            for (auto &in : op->inputs)
+                if (in->kind == ValueKind::RESULT) Visit(in->Vertex(), false);
+            return nullptr;
+        }
+    }
+
+    ValueRef VisitValue(const ValueRef &value) {
+        if (Contains(valueMap, value)) return valueMap[value];
+        auto newVal = std::make_shared<Value>(*value);
+        valueMap.insert({value, newVal});
+        if (newVal->kind == ValueKind::PARAM) dst.params.push_back(newVal);
+        return newVal;
+    }
+
+private:
+    std::unordered_map<ValueRef, ValueRef> valueMap;
+    const Graph &src;
+    Graph &dst;
+    std::function<bool(OpRef)> isOutput;
+};
+
+Graph Graph::Subgraph(std::function<bool(const OpRef &)> isOutput,
+                      const std::string &subName) const {
+    Graph sub;
+    sub.name = subName;
+    SubgraphExtractor(*this, sub, isOutput).Extract();
+    return sub;
 }
 
 void Graph::Visualize(const std::string &dir, const std::string &format) const {

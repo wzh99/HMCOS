@@ -14,9 +14,14 @@ int main(int argc, char const *argv[]) {
     onnx::ModelProto model;
     model.ParseFromIstream(&ifs);
     Graph graph(model, "nasnet_mobile");
-    auto newGraph = graph.Clone();
+    auto newGraph = graph.Subgraph(
+        [](const OpRef &op) {
+            return op->name == "NASNet/cell_stem_0/cell_output/concat" ||
+                   op->name == "NASNet/cell_stem_1/concat";
+        },
+        "nasnet_block");
 
-    // Visualize graph
+    // Visualize graph"
     newGraph.Visualize("../../out");
 
     return 0;
