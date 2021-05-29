@@ -54,6 +54,11 @@ private:
     void count(std::function<void(uint64_t)> callback) const;
 };
 
+/// Compute lifetime statistics of a complete op sequence of a graph.
 LifetimeStat ComputeLifetime(const OpSeq &opSeq, const Graph &graph);
+
+/// Estimate peak memory usage of an op sequence. This sequence does not need to
+/// contain all the ops in the graph. 
+uint64_t EstimatePeak(const OpSeq &seq, const std::vector<InputRef> &inputs);
 
 }  // namespace hos

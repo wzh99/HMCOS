@@ -14,8 +14,8 @@ OpSeq ReversePostOrder(const Graph &graph) {
 class BruteForceSearcher {
 public:
     BruteForceSearcher(const Graph &graph,
-                       std::function<double(const OpSeq &)> metric,
-                       std::function<void(const OpSeq &, double)> callback)
+                       std::function<uint64_t(const OpSeq &)> metric,
+                       std::function<void(const OpSeq &, uint64_t)> callback)
         : graph(graph), metric(metric), callback(callback) {}
 
     void Search() {
@@ -27,20 +27,21 @@ public:
             for (auto &succ : input->succs) predCnt[As<Op>(succ.lock())]--;
 
         // Begin searching
-        best = INFINITY;
+        best = UINT64_MAX;
         OpSeq seq;
         search(seq, predCnt);
     }
 
 private:
     void search(OpSeq &seq, std::unordered_map<OpRef, uint32_t> &predCnt) {
-        // Call callbacks if sequence no worse than best is found
+        // Prune sequences that are sub-optimal
+        auto curMetric = this->metric(seq);
+        if (curMetric >= best) return;
+
+        // Call callback if a complete sequence is found
         if (predCnt.size() == 0) {
-            auto m = this->metric(seq);
-            if (m < best) {
-                best = m;
-                this->callback(seq, m);
-            }
+            best = curMetric;
+            this->callback(seq, curMetric);
             return;
         }
 
@@ -56,8 +57,7 @@ private:
             predCnt.erase(op);
             for (auto &succWeak : op->succs) {
                 auto succ = succWeak.lock();
-                if (succ->GetKind() == Vertex::VertexKind::OP)
-                    predCnt[As<Op>(succ)]--;
+                if (succ->GetKind() == VertexKind::OP) predCnt[As<Op>(succ)]--;
             }
             search(seq, predCnt);
 
@@ -66,21 +66,23 @@ private:
             predCnt.insert({op, 0});
             for (auto &succWeak : op->succs) {
                 auto succ = succWeak.lock();
-                if (succ->GetKind() == Vertex::VertexKind::OP)
-                    predCnt[As<Op>(succ)]++;
+                if (succ->GetKind() == VertexKind::OP) predCnt[As<Op>(succ)]++;
             }
+
+            // Prune if subsequence is already sub-optimal
+            if (this->metric(seq) >= best) break;
         }
     }
 
     const Graph &graph;
-    std::function<double(const OpSeq &)> metric;
-    std::function<void(const OpSeq &, double)> callback;
-    double best;
+    std::function<uint64_t(const OpSeq &)> metric;
+    std::function<void(const OpSeq &, uint64_t)> callback;
+    uint64_t best;
 };
 
 void BruteForceSearch(const Graph &graph,
-                      std::function<double(const OpSeq &)> metric,
-                      std::function<void(const OpSeq &, double)> callback) {
+                      std::function<uint64_t(const OpSeq &)> metric,
+                      std::function<void(const OpSeq &, uint64_t)> callback) {
     BruteForceSearcher(graph, metric, callback).Search();
 }
 

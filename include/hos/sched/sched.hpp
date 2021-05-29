@@ -8,7 +8,7 @@ using OpSeq = std::vector<OpRef>;
 
 OpSeq ReversePostOrder(const Graph &graph);
 
-void BruteForceSearch(const Graph &graph, std::function<double(const OpSeq &)> metric,
-                      std::function<void(const OpSeq &, double)> callback);
+void BruteForceSearch(const Graph &graph, std::function<uint64_t(const OpSeq &)> metric,
+                      std::function<void(const OpSeq &, uint64_t)> callback);
 
 }  // namespace hos

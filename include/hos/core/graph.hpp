@@ -5,6 +5,12 @@
 
 namespace hos {
 
+enum class VertexKind {
+    INPUT,
+    OUTPUT,
+    OP,
+};
+
 struct Vertex {
     /// Predecessor list of vertex
     /// All elements in predecessor or successor list must be distinct.
@@ -21,12 +27,6 @@ struct Vertex {
         Remove(tail->succs, std::weak_ptr(head));
         Remove(head->preds, tail);
     }
-
-    enum class VertexKind {
-        INPUT,
-        OUTPUT,
-        OP,
-    };
 
     virtual VertexKind GetKind() const = 0;
 };
@@ -130,18 +130,17 @@ template <class Ret, class... Args>
 class VertexVisitor {
 public:
     virtual Ret Visit(const VertexRef &vert, Args... args) {
-        using Kind = Vertex::VertexKind;
         if (Contains(memo, vert)) return memo[vert];
         Ret ret;
         switch (vert->GetKind()) {
-            case Kind::INPUT:
+            case VertexKind::INPUT:
                 ret = VisitInput(As<Input>(vert), std::forward<Args>(args)...);
                 break;
-            case Kind::OUTPUT:
+            case VertexKind::OUTPUT:
                 ret =
                     VisitOutput(As<Output>(vert), std::forward<Args>(args)...);
                 break;
-            case Kind::OP:
+            case VertexKind::OP:
                 ret = VisitOp(As<Op>(vert), std::forward<Args>(args)...);
                 break;
             default:

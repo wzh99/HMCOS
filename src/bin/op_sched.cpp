@@ -9,6 +9,7 @@ using namespace hos;
 
 int main(int argc, char const *argv[]) {
     // Initialize glog
+    FLAGS_minloglevel = 0;
     google::LogToStderr();
     google::InitGoogleLogging(argv[0]);
 
@@ -16,7 +17,7 @@ int main(int argc, char const *argv[]) {
     OpTraitRegistry::Init();
 
     // Read ONNX model
-    std::ifstream ifs("../../model/nasnet_mobile.onnx", std::ifstream::binary);
+    std::ifstream ifs("../model/nasnet_mobile.onnx", std::ifstream::binary);
     onnx::ModelProto model;
     model.ParseFromIstream(&ifs);
     ifs.close();
@@ -25,17 +26,15 @@ int main(int argc, char const *argv[]) {
     Graph graph(model, "nasnet_mobile");
     graph = graph.Subgraph(
         [](const OpRef &op) {
-            return op->name == "NASNet/cell_stem_0/cell_output/concat" ||
-                   op->name == "NASNet/cell_stem_1/concat";
+            return op->name == "NASNet/cell_stem_1/cell_output/concat";
         },
         "nasnet_block");
     BruteForceSearch(
         graph,
-        [&](const OpSeq &seq) {
-            return double(ComputeLifetime(seq, graph).Peak());
-        },
-        [&](const OpSeq &seq, double metric) { 
-            fmt::print("{}\n", metric); 
+        [&](const OpSeq &seq) { return EstimatePeak(seq, graph.inputs); },
+        [&](const OpSeq &seq, uint64_t metric) {
+            for (auto &op : seq) fmt::print("{}\n", op->name);
+            fmt::print("Peak: {}\n", metric);
         });
 
     return 0;

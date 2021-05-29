@@ -102,7 +102,7 @@ private:
 
 template <class Elem, class Pred, class Cmp>
 inline auto MinPosWithConstr(const std::vector<Elem> &vec, Pred pred, Cmp cmp) {
-    std::optional<std::vector<Elem>::const_iterator> minPos;
+    std::optional<typename std::vector<Elem>::const_iterator> minPos;
     for (auto it = vec.begin(); it != vec.end(); it++) {
         if (!pred(*it)) continue;
         if (!minPos.has_value() || cmp(*it, *minPos.value())) minPos = it;
