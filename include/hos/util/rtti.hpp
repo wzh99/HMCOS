@@ -17,12 +17,17 @@ inline bool Is(const std::shared_ptr<Base> &ptr) {
 }
 
 template <class Derived, class Base>
+inline auto Cast(const std::shared_ptr<Base> &ptr) {
+    return std::shared_ptr<Derived>(ptr, static_cast<Derived *>(ptr.get()));
+}
+
+template <class Derived, class Base>
 inline std::shared_ptr<Derived> As(const std::shared_ptr<Base> &ptr) {
     if (!Is<Derived>(ptr))
         LOG(FATAL) << fmt::format("Object is not of type `{}`.",
                                   typeid(Derived).name());
     else
-        return std::shared_ptr<Derived>(ptr, static_cast<Derived *>(ptr.get()));
+        return Cast<Derived>(ptr);
 }
 
 }  // namespace hos
