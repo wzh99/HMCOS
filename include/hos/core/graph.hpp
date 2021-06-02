@@ -5,29 +5,34 @@
 
 namespace hos {
 
+template <class VertType>
+struct AbstractVertex {
+    /// Predecessor list of vertex
+    /// All elements in predecessor or successor list must be distinct.
+    /// (Multi-edges are not allowed)
+    std::vector<std::weak_ptr<VertType>> preds;
+    std::vector<std::shared_ptr<VertType>> succs;
+
+    static void Connect(const std::shared_ptr<VertType> &tail,
+                        const std::shared_ptr<VertType> &head) {
+        AddUnique(tail->succs, head);
+        AddUnique(head->preds, std::weak_ptr<VertType>(tail));
+    }
+
+    static void Disconnect(const std::shared_ptr<VertType> &tail,
+                           const std::shared_ptr<VertType> &head) {
+        Remove(tail->succs, head);
+        Remove(head->preds, std::weak_ptr<VertType>(tail));
+    }
+};
+
 enum class VertexKind {
     INPUT,
     OUTPUT,
     OP,
 };
 
-struct Vertex {
-    /// Predecessor list of vertex
-    /// All elements in predecessor or successor list must be distinct.
-    /// (Multi-edges are not allowed)
-    std::vector<VertexRef> preds;
-    std::vector<std::weak_ptr<Vertex>> succs;
-
-    static void Connect(const VertexRef &tail, const VertexRef &head) {
-        AddUnique(tail->succs, std::weak_ptr(head));
-        AddUnique(head->preds, tail);
-    }
-
-    static void Disconnect(const VertexRef &tail, const VertexRef &head) {
-        Remove(tail->succs, std::weak_ptr(head));
-        Remove(head->preds, tail);
-    }
-
+struct Vertex : public AbstractVertex<Vertex> {
     virtual VertexKind GetKind() const = 0;
 };
 
@@ -40,7 +45,6 @@ struct Input : public Vertex {
     }
 
     static constexpr auto classKind = VertexKind::INPUT;
-
     VertexKind GetKind() const override { return VertexKind::INPUT; }
 };
 
@@ -55,7 +59,6 @@ struct Output : public Vertex {
     }
 
     static constexpr auto classKind = VertexKind::OUTPUT;
-
     VertexKind GetKind() const override { return VertexKind::OUTPUT; }
 };
 
@@ -75,7 +78,6 @@ struct Op : Vertex {
     Op(const Op &other) : name(other.name), type(other.type) {}
 
     static constexpr auto classKind = VertexKind::OP;
-
     VertexKind GetKind() const override { return VertexKind::OP; }
 };
 
@@ -134,14 +136,15 @@ public:
         Ret ret;
         switch (vert->GetKind()) {
             case VertexKind::INPUT:
-                ret = VisitInput(As<Input>(vert), std::forward<Args>(args)...);
+                ret =
+                    VisitInput(Cast<Input>(vert), std::forward<Args>(args)...);
                 break;
             case VertexKind::OUTPUT:
-                ret =
-                    VisitOutput(As<Output>(vert), std::forward<Args>(args)...);
+                ret = VisitOutput(Cast<Output>(vert),
+                                  std::forward<Args>(args)...);
                 break;
             case VertexKind::OP:
-                ret = VisitOp(As<Op>(vert), std::forward<Args>(args)...);
+                ret = VisitOp(Cast<Op>(vert), std::forward<Args>(args)...);
                 break;
             default:
                 LOG(FATAL) << "Unreachable.";

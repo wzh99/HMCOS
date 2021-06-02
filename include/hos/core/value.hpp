@@ -2,7 +2,7 @@
 
 #include <onnx/onnx_pb.h>
 
-#include <hos/core/rtti.hpp>
+#include <hos/util/rtti.hpp>
 #include <hos/util/util.hpp>
 
 namespace hos {

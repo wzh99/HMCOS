@@ -24,7 +24,7 @@ public:
         for (auto &op : graph.ops)
             predCnt.insert({op, uint32_t(op->preds.size())});
         for (auto &input : graph.inputs)
-            for (auto &succ : input->succs) predCnt[As<Op>(succ.lock())]--;
+            for (auto &succ : input->succs) predCnt[As<Op>(succ)]--;
 
         // Begin searching
         best = UINT64_MAX;
@@ -55,19 +55,15 @@ private:
             // Add to sequence and update predecessor count
             seq.push_back(op);
             predCnt.erase(op);
-            for (auto &succWeak : op->succs) {
-                auto succ = succWeak.lock();
+            for (auto &succ : op->succs)
                 if (succ->GetKind() == VertexKind::OP) predCnt[As<Op>(succ)]--;
-            }
             search(seq, predCnt);
 
             // Remove from sequence and restore predecessor count
             seq.pop_back();
             predCnt.insert({op, 0});
-            for (auto &succWeak : op->succs) {
-                auto succ = succWeak.lock();
+            for (auto &succ : op->succs)
                 if (succ->GetKind() == VertexKind::OP) predCnt[As<Op>(succ)]++;
-            }
 
             // Prune if subsequence is already sub-optimal
             if (this->metric(seq) >= best) break;
