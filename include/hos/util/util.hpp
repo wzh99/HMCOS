@@ -10,20 +10,22 @@
 
 namespace hos {
 
-/// Smart Pointer Utility
+/// Smart Pointer
+
 template <class Elem>
-inline bool operator==(const std::weak_ptr<Elem> &lhs, const std::weak_ptr<Elem> &rhs) {
+inline bool operator==(const std::weak_ptr<Elem> &lhs,
+                       const std::weak_ptr<Elem> &rhs) {
     if (lhs.expired() || rhs.expired()) return false;
     return lhs.lock() == rhs.lock();
 }
 
-/// String Utility
+/// String
 
 template <class StrIterable>
 inline std::string Join(const StrIterable &strs, std::string &&sep,
-                        std::string &&prefix = "", std::string &&suffix = "") {
+                        char *prefix = "", char *suffix = "") {
     // Return empty string if there are no elements
-    if (strs.empty()) return prefix + suffix;
+    if (strs.empty()) return std::string(prefix) + suffix;
 
     // Join strings
     auto it = strs.begin();
@@ -36,13 +38,12 @@ inline std::string Join(const StrIterable &strs, std::string &&sep,
 }
 
 template <class StrIterable>
-inline std::string JoinWithComma(const StrIterable &strs,
-                                 std::string &&prefix = "",
-                                 std::string &&suffix = "") {
-    return Join(strs, ", ", std::move(prefix), std::move(suffix));
+inline std::string JoinWithComma(const StrIterable &strs, char *prefix = "",
+                                 char *suffix = "") {
+    return Join(strs, ", ", prefix, suffix);
 }
 
-/// Functional Utility
+/// Functional
 
 template <class Dst, class Src, class F>
 inline auto Transform(const Src &src, F func) {
@@ -57,7 +58,14 @@ inline auto Accumulate(const Iterable &elems, BinOp binOp, Lhs init) {
     return std::accumulate(elems.begin(), elems.end(), init, binOp);
 }
 
-/// Vector Utility
+template <class Dst, class Src, class Pred>
+inline auto Filter(const Src &src, Pred pred) {
+    Dst dst;
+    std::copy_if(src.begin(), src.end(), std::back_inserter(dst), pred);
+    return dst;
+}
+
+/// Vector
 
 template <class Elem>
 inline bool Contains(const std::vector<Elem> &vec, const Elem &elem) {
@@ -86,7 +94,7 @@ inline const Elem &ReduceMin(const std::vector<Elem> &vec, Cmp cmp) {
     return *std::min_element(vec.begin(), vec.end(), cmp);
 }
 
-/// Set Utility
+/// Set
 
 template <class KeyType, class ValueType>
 inline bool Contains(const std::unordered_set<KeyType, ValueType> &map,
@@ -94,14 +102,12 @@ inline bool Contains(const std::unordered_set<KeyType, ValueType> &map,
     return map.find(elem) != map.end();
 }
 
-/// Map Utility
+/// Map
 
 template <class KeyType, class ValueType>
 inline bool Contains(const std::unordered_map<KeyType, ValueType> &map,
                      const KeyType &elem) {
     return map.find(elem) != map.end();
 }
-
-/// ONNX Utility
 
 }  // namespace hos

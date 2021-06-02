@@ -15,23 +15,12 @@ inline std::string FmtInt(int64_t i) { return fmt::format("{}", i); }
 
 inline std::string FmtFloat(float f) { return fmt::format("{:.2e}", f); }
 
-inline std::string FmtStr(const std::string &s) {
-    std::stringstream ss;
-    ss << "'";
-    for (auto &c : s) {
-        ss << c;
-        if (c == '\\') ss << '\\';
-    }
-    ss << "'";
-    return ss.str();
-}
+std::string FmtStr(const std::string &s, char quote = '\'');
 
 template <class Iterable, class F>
-inline std::string FmtList(const Iterable &list, F fmt,
-                           std::string &&prefix = "[",
-                           std::string &&suffix = "]") {
-    return JoinWithComma(Transform<StrVec>(list, fmt), std::move(prefix),
-                         std::move(suffix));
+inline std::string FmtList(const Iterable &list, F fmt, char *prefix = "[",
+                           char *suffix = "]") {
+    return JoinWithComma(Transform<StrVec>(list, fmt), prefix, suffix);
 }
 
 inline std::string FmtTensorDims(const I64Repeated &dims) {

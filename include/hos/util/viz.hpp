@@ -1,6 +1,5 @@
 #pragma once
 
-#include <fmt/core.h>
 #include <glog/logging.h>
 
 #include <filesystem>
@@ -75,13 +74,15 @@ void DotCreator<NodeType>::Render(const std::string &dir,
     {
         // Write node attribute
         auto indent = writer.Indent();
-        auto nodeAttr = fmt::format(
-            "node [fontname=\"{}\" shape=box style=rounded]", DEFAULT_FONT);
+        auto nodeAttr =
+            fmt::format("node [fontname={} shape=box style=rounded]",
+                        FmtStr(DEFAULT_FONT, '"'));
         writer.WriteLn(nodeAttr);
 
         // Write nodes
         for (auto i = 0u; i < nodeLabels.size(); i++)
-            writer.WriteLn(fmt::format("{} [label=\"{}\"]", i, nodeLabels[i]));
+            writer.WriteLn(fmt::format("{} [label=\"{}\"]", i,
+                                       FmtStr(nodeLabels[i], '"')));
 
         // Write edges
         for (auto &[tail, head] : edges)

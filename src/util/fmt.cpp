@@ -9,6 +9,22 @@ namespace hos {
 
 using namespace onnx;
 
+std::unordered_map<char, char *> escapeChars{{'\\', "\\\\"}, {'\n', "\\\n"}};
+
+std::string FmtStr(const std::string &s, char quote) {
+    std::stringstream ss;
+    ss << quote;
+    for (auto &c : s)
+        if (c == quote)
+            ss << std::string("\\") + c;
+        else if (Contains(escapeChars, c))
+            ss << escapeChars[c];
+        else
+            ss << c;
+    ss << quote;
+    return ss.str();
+}
+
 // Names must match those defined in `TensorProto::DataType`
 static std::vector<std::string> dtypeNames{
     "undefined", "float32", "uint8",     "int8",       "uint16",   "int16",
@@ -30,7 +46,9 @@ static std::unordered_map<AttributeProto::AttributeType,
         {AttributeProto::FLOATS,
          [](auto a) { return FmtList(a.floats(), FmtFloat); }},
         {AttributeProto::STRINGS,
-         [](auto a) { return FmtList(a.strings(), FmtStr); }},
+         [](auto a) {
+             return FmtList(a.strings(), [](auto &s) { return FmtStr(s); });
+         }},
         {AttributeProto::TENSORS,
          [](auto a) { return FmtList(a.tensors(), FmtTensorBrief); }},
     };
