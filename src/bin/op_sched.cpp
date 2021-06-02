@@ -17,7 +17,7 @@ int main(int argc, char const *argv[]) {
     OpTraitRegistry::Init();
 
     // Read ONNX model
-    std::ifstream ifs("../model/nasnet_mobile.onnx", std::ifstream::binary);
+    std::ifstream ifs("../../model/nasnet_mobile.onnx", std::ifstream::binary);
     onnx::ModelProto model;
     model.ParseFromIstream(&ifs);
     ifs.close();

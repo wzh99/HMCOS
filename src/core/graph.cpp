@@ -95,7 +95,7 @@ void Graph::Traverse(std::function<void(const VertexRef &)> func) const {
         stack.pop_back();
 
         // Skip if this vertex is traversed before
-        if (traversed.find(vertex) != traversed.end()) continue;
+        if (Contains(traversed, vertex)) continue;
 
         // Apply function to vertex if it has been visited
         if (visited) {
@@ -108,7 +108,7 @@ void Graph::Traverse(std::function<void(const VertexRef &)> func) const {
         stack.push_back({vertex, true});
         auto &preds = vertex->preds;
         for (auto iter = preds.rbegin(); iter != preds.rend(); iter++)
-            stack.push_back({*iter, false});
+            stack.push_back({iter->lock(), false});
     }
 }
 
@@ -281,8 +281,8 @@ void Graph::Visualize(const std::string &dir, const std::string &format) const {
 
     // Add edges
     for (auto &op : ops)
-        for (auto &pred : op->preds) creator.AddEdge(pred, op);
-    for (auto &out : outputs) creator.AddEdge(out->preds[0], out);
+        for (auto &pred : op->preds) creator.AddEdge(pred.lock(), op);
+    for (auto &out : outputs) creator.AddEdge(out->preds[0].lock(), out);
 
     // Compile
     creator.Render(dir, format);
