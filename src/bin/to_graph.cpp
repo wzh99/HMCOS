@@ -16,6 +16,7 @@ int main(int argc, char const *argv[]) {
 
     // Build hierarchical graph
     HierGraph hier(graph);
+    hier.VisualizeAll("../../out", "nasnet_hier");
 
     return 0;
 }

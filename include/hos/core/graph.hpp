@@ -58,6 +58,8 @@ struct Output : public Vertex {
         LOG_ASSERT(val->kind == ValueKind::RESULT);
     }
 
+    VertexRef Def() const { return preds[0].lock(); }
+
     static constexpr auto classKind = VertexKind::OUTPUT;
     VertexKind GetKind() const override { return VertexKind::OUTPUT; }
 };

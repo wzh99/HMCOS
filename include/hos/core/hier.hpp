@@ -98,6 +98,8 @@ using GroupRef = std::shared_ptr<Group>;
 
 /// A hierarchical graph, created from normal graph
 struct HierGraph {
+    // Original computation graph
+    const Graph &graph;
     /// Only inputs and outputs are explicited stored, and others are connected
     /// by references and can be found through traversal of the graph.
     std::vector<HierInputRef> inputs;
@@ -107,7 +109,9 @@ struct HierGraph {
 
     explicit HierGraph(const Graph &graph);
 
-    
+    /// Visualize all levels of structures in this hierarchical graph
+    void VisualizeAll(const std::string &dir, const std::string &name,
+                      const std::string &format = "pdf");
 };
 
 /// Visitor of vertices in hierarchical graph

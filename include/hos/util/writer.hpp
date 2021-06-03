@@ -3,6 +3,8 @@
 #include <iostream>
 #include <string>
 
+namespace hos {
+
 class CodeWriter {
 public:
     CodeWriter(std::ostream &ofs) : ofs(ofs) {}
@@ -32,3 +34,5 @@ private:
     std::ostream &ofs;
     uint32_t indCnt = 0;
 };
+
+}

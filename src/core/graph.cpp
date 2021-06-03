@@ -275,14 +275,14 @@ void Graph::Visualize(const std::string &dir, const std::string &format) const {
     DotCreator<VertexRef> creator(name);
 
     // Add vertices
-    for (auto &in : inputs) creator.AddNode(in, in->value->name);
-    for (auto &op : ops) creator.AddNode(op, op->type);
-    for (auto &out : outputs) creator.AddNode(out, out->value->name);
+    for (auto &in : inputs) creator.Node(in, in->value->name);
+    for (auto &op : ops) creator.Node(op, op->type);
+    for (auto &out : outputs) creator.Node(out, out->value->name);
 
     // Add edges
     for (auto &op : ops)
-        for (auto &pred : op->preds) creator.AddEdge(pred.lock(), op);
-    for (auto &out : outputs) creator.AddEdge(out->preds[0].lock(), out);
+        for (auto &pred : op->preds) creator.Edge(pred.lock(), op);
+    for (auto &out : outputs) creator.Edge(out->Def(), out);
 
     // Compile
     creator.Render(dir, format);

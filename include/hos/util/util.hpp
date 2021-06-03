@@ -6,11 +6,16 @@
 #include <numeric>
 #include <sstream>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace hos {
 
-/// Smart Pointer
+/// Type definition
+
+using Unit = std::monostate;
+
+/// Smart pointer
 
 template <class Elem>
 inline bool operator==(const std::weak_ptr<Elem> &lhs,
