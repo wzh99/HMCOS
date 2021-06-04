@@ -4,6 +4,14 @@
 
 namespace hos {
 
+Sequence::Sequence(const OpRef &op) : ops{op}, outputs(op->outputs) {
+    for (auto &in : op->inputs) {
+        if (in->kind == ValueKind::PARAM) continue;
+        if (Contains(this->inputs, in)) continue;
+        this->inputs.push_back(in);
+    }
+}
+
 HierGraph::HierGraph(const Graph &graph) : graph(graph) {
     // Initialize inputs and outputs
     for (auto &in : graph.inputs) {

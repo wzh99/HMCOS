@@ -56,17 +56,14 @@ struct Sequence : public HierVertex {
     /// All ops in this sequence
     std::vector<OpRef> ops;
     /// Input and output values of this sequence
-    /// Parameters are not considered inputs in sequence.
+    /// There are some differences between inputs of an op and those of a sequence:
+    /// 1. Parameters are not considered inputs in the sequence.
+    /// 2. All input values in sequence must be unique.
     std::vector<ValueRef> inputs, outputs;
     /// Group that this sequence reside in
     std::weak_ptr<Group> group;
 
-    Sequence(const OpRef &op) : ops{op}, outputs(op->outputs) {
-        this->inputs =
-            Filter<decltype(inputs)>(op->inputs, [](const ValueRef &value) {
-                return value->kind != ValueKind::PARAM;
-            });
-    }
+    Sequence(const OpRef &op);
 
     OpRef Entrance() const { return ops.front(); }
     OpRef Exit() const { return ops.back(); }

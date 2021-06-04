@@ -1,5 +1,6 @@
 #include <fstream>
-#include <hos/core/hier.hpp>
+#include <hos/sched/pass.hpp>
+#include <hos/util/op.hpp>
 
 using namespace hos;
 
@@ -7,6 +8,9 @@ int main(int argc, char const *argv[]) {
     // Initialize glog
     FLAGS_logtostderr = true;
     google::InitGoogleLogging(argv[0]);
+
+    // Initialize op traits
+    OpTraitRegistry::Init();
 
     // Build computation graph from ONNX model
     std::ifstream ifs("../../model/nasnet_mobile.onnx", std::ifstream::binary);
@@ -16,6 +20,7 @@ int main(int argc, char const *argv[]) {
 
     // Build hierarchical graph
     HierGraph hier(graph);
+    RunPass<JoinSequencePass>(hier);
     hier.VisualizeAll("../../out", "nasnet_hier");
 
     return 0;
