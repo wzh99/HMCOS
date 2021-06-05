@@ -96,4 +96,55 @@ void HierGraph::VisualizeAll(const std::string &dir, const std::string &name,
     creator.Render(dir, format);
 }
 
+class HierVizTopVisitor : public HierVertVisitor<Unit> {
+public:
+    HierVizTopVisitor(DotCreator<HierVertRef> &creator) : creator(creator) {}
+
+    void Visualize(const HierGraph &hier) {
+        for (auto &in : hier.inputs) Visit(in);
+    }
+
+    Unit VisitInput(const HierInputRef &input) {
+        creator.Node(input, input->value->name);
+        visitSuccs(input);
+        return {};
+    }
+
+    Unit VisitOutput(const HierOutputRef &output) {
+        creator.Node(output, output->value->name);
+        return {};
+    }
+
+    Unit VisitSequence(const SequenceRef &seq) {
+        auto label = FmtList(
+            seq->ops, [](const OpRef &op) { return op->type; }, "", "", "\n");
+        creator.Node(seq, label);
+        visitSuccs(seq);
+        return {};
+    }
+
+    Unit VisitGroup(const GroupRef &group) {
+        creator.Node(group, "Group");
+        visitSuccs(group);
+        return {};
+    }
+
+private:
+    void visitSuccs(const HierVertRef &vert) {
+        for (auto &succ : vert->succs) {
+            Visit(succ);
+            creator.Edge(vert, succ);
+        }
+    }
+
+    DotCreator<HierVertRef> &creator;
+};
+
+void HierGraph::VisualizeTop(const std::string &dir, const std::string &name,
+                             const std::string &format) {
+    DotCreator<HierVertRef> creator(name);
+    HierVizTopVisitor(creator).Visualize(*this);
+    creator.Render(dir, format);
+}
+
 }  // namespace hos

@@ -56,7 +56,8 @@ struct Sequence : public HierVertex {
     /// All ops in this sequence
     std::vector<OpRef> ops;
     /// Input and output values of this sequence
-    /// There are some differences between inputs of an op and those of a sequence:
+    /// There are some differences between inputs of an op and those of a
+    /// sequence:
     /// 1. Parameters are not considered inputs in the sequence.
     /// 2. All input values in sequence must be unique.
     std::vector<ValueRef> inputs, outputs;
@@ -108,6 +109,10 @@ struct HierGraph {
 
     /// Visualize all levels of structures in this hierarchical graph
     void VisualizeAll(const std::string &dir, const std::string &name,
+                      const std::string &format = "pdf");
+
+    /// Visualize top level vertices in this graph
+    void VisualizeTop(const std::string &dir, const std::string &name,
                       const std::string &format = "pdf");
 };
 
@@ -162,7 +167,7 @@ public:
 /// Run a series of passes with static polymorphism
 template <class... Passes>
 inline void RunPass(HierGraph &graph) {
-    std::initializer_list<int>{0, (Passes().Run(graph), 0)...};
+    (void)std::initializer_list<int>{0, (Passes().Run(graph), 0)...};
 }
 
 }  // namespace hos

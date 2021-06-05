@@ -6,14 +6,15 @@ using namespace hos;
 
 int main(int argc, char const *argv[]) {
     // Initialize glog
-    FLAGS_logtostderr = true;
+    google::LogToStderr();
+    FLAGS_minloglevel = 0;
     google::InitGoogleLogging(argv[0]);
 
     // Initialize op traits
     OpTraitRegistry::Init();
 
     // Build computation graph from ONNX model
-    std::ifstream ifs("../../model/nasnet_mobile.onnx", std::ifstream::binary);
+    std::ifstream ifs("../model/nasnet_mobile.onnx", std::ifstream::binary);
     onnx::ModelProto model;
     model.ParseFromIstream(&ifs);
     Graph graph(model, "nasnet_mobile");
@@ -21,7 +22,8 @@ int main(int argc, char const *argv[]) {
     // Build hierarchical graph
     HierGraph hier(graph);
     RunPass<JoinSequencePass>(hier);
-    hier.VisualizeAll("../../out", "nasnet_hier");
+    // hier.VisualizeAll("../out", "nasnet_hier");
+    hier.VisualizeTop("../out", "nasnet_top");
 
     return 0;
 }
