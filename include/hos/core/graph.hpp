@@ -1,44 +1,10 @@
 #pragma once
 
 #include <hos/core/value.hpp>
+#include <hos/core/vertex.hpp>
 #include <hos/util/util.hpp>
 
 namespace hos {
-
-template <class VertType>
-struct AbstractVertex {
-    using VertRef = std::shared_ptr<VertType>;
-    using VertWeakRef = std::weak_ptr<VertType>;
-
-    /// Predecessor list of vertex
-    /// All elements in predecessor or successor list must be distinct.
-    /// (Multi-edges are not allowed)
-    std::vector<VertWeakRef> preds;
-    std::vector<VertRef> succs;
-
-    static void Connect(const VertRef &tail, const VertRef &head) {
-        AddUnique(tail->succs, head);
-        AddUnique(head->preds, VertWeakRef(tail));
-    }
-
-    static void Disconnect(const VertRef &tail, const VertRef &head) {
-        Remove(tail->succs, head);
-        Remove(head->preds, VertWeakRef(tail));
-    }
-
-    static void Replace(const VertRef &oldVert, const VertRef &newVert) {
-        for (auto &predWeak : oldVert->preds) {
-            auto pred = predWeak.lock();
-            std::replace(pred->succs.begin(), pred->succs.end(), oldVert,
-                         newVert);
-        }
-        for (auto &succ : oldVert->succs)
-            std::replace_if(
-                succ->preds.begin(), succ->preds.end(),
-                [&](const VertWeakRef &v) { return v.lock() == oldVert; },
-                VertWeakRef(newVert));
-    }
-};
 
 enum class VertexKind {
     INPUT,
@@ -119,12 +85,6 @@ struct Graph {
     /// Otherwise the constructor will panic.
     Graph(const onnx::ModelProto &model, const std::string &name = "");
 
-    /// Traverse the graph in reverse post-order.
-    /// This method is suitable for simple traversal that does not depend on
-    /// results of predecessors. If results of predecessors are needed, consider
-    /// using `GraphVisitor`.
-    void Traverse(std::function<void(const VertexRef &)> func) const;
-
     /// Clone this graph.
     /// All vertices and values in this graph will be cloned, not
     /// reference-copied.
@@ -144,6 +104,22 @@ struct Graph {
     void ConnectVerts();
 };
 
+class RpoVertRange {
+public:
+    RpoVertRange(const Graph &graph) : graph(graph) {}
+
+    RpoIter<Vertex> begin() const {
+        return RpoIter(Transform<std::vector<VertexRef>>(
+            graph.outputs, [](auto &out) { return VertexRef(out); }));
+    }
+
+    RpoIter<Vertex> end() const { return RpoIter<Vertex>::End(); }
+
+private:
+    const Graph &graph;
+};
+
+/// Vertex visitor template that performs dynamic dispatch of visiting methods
 template <class Ret, class... Args>
 class VertexVisitor {
 public:

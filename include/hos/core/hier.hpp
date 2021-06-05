@@ -116,6 +116,21 @@ struct HierGraph {
                       const std::string &format = "pdf");
 };
 
+class RpoHierRange {
+public:
+    RpoHierRange(const HierGraph &hier) : hier(hier) {}
+
+    RpoIter<HierVertex> begin() const {
+        return RpoIter(Transform<std::vector<HierVertRef>>(
+            hier.outputs, [](auto &out) { return HierVertRef(out); }));
+    }
+
+    RpoIter<HierVertex> end() const { return RpoIter<HierVertex>::End(); }
+
+private:
+    const HierGraph &hier;
+};
+
 /// Visitor of vertices in hierarchical graph
 template <class Ret, class... Args>
 class HierVertVisitor {

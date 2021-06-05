@@ -5,9 +5,8 @@ namespace hos {
 
 OpSeq ReversePostOrder(const Graph &graph) {
     std::vector<OpRef> seq;
-    graph.Traverse([&](const VertexRef &v) {
-        if (Is<Op>(v)) seq.push_back(As<Op>(v));
-    });
+    for (auto v : RpoVertRange(graph))
+        if (Is<Op>(v)) seq.push_back(Cast<Op>(v));
     return seq;
 }
 

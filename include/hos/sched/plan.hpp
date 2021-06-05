@@ -68,7 +68,7 @@ public:
 
     template <class Cmp>
     const Step &FindMinBy(Cmp cmp) const {
-        return ReduceMin(steps, cmp);
+        return MinElem(steps, cmp);
     }
 
     uint64_t GetMaxHeight() const { return maxHeight; }
