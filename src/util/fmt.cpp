@@ -9,7 +9,7 @@ namespace hos {
 
 using namespace onnx;
 
-std::unordered_map<char, char *> escapeChars{{'\\', "\\\\"}, {'\n', "\\\n"}};
+std::unordered_map<char, const char *> escapeChars{{'\\', "\\\\"}, {'\n', "\\n"}};
 
 std::string FmtStr(const std::string &s, char quote) {
     std::stringstream ss;

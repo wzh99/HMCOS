@@ -2,9 +2,8 @@
 
 #include <glog/logging.h>
 
-#include <iterator>
+#include <algorithm>
 #include <numeric>
-#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -29,8 +28,8 @@ inline bool operator==(const std::weak_ptr<Elem> &lhs,
 /// String
 
 template <class StrIterable>
-inline std::string Join(const StrIterable &strs, std::string &&sep,
-                        char *prefix = "", char *suffix = "") {
+inline std::string Join(const StrIterable &strs, const char *sep,
+                        const char *prefix = "", const char *suffix = "") {
     // Return empty string if there are no elements
     if (strs.empty()) return std::string(prefix) + suffix;
 
@@ -45,8 +44,9 @@ inline std::string Join(const StrIterable &strs, std::string &&sep,
 }
 
 template <class StrIterable>
-inline std::string JoinWithComma(const StrIterable &strs, char *prefix = "",
-                                 char *suffix = "") {
+inline std::string JoinWithComma(const StrIterable &strs,
+                                 const char *prefix = "",
+                                 const char *suffix = "") {
     return Join(strs, ", ", prefix, suffix);
 }
 
@@ -96,7 +96,7 @@ inline void RemoveIf(std::vector<Elem> &vec, Pred pred) {
 }
 
 template <class Elem, class Cmp>
-inline const Elem &ReduceMin(const std::vector<Elem> &vec, Cmp cmp) {
+inline const Elem &MinElem(const std::vector<Elem> &vec, Cmp cmp) {
     LOG_ASSERT(!vec.empty());
     return *std::min_element(vec.begin(), vec.end(), cmp);
 }

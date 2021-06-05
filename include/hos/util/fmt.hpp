@@ -7,8 +7,6 @@
 
 namespace hos {
 
-using StrVec = std::vector<std::string>;
-
 using I64Repeated = google::protobuf::RepeatedField<int64_t>;
 
 inline std::string FmtInt(int64_t i) { return fmt::format("{}", i); }
@@ -18,9 +16,11 @@ inline std::string FmtFloat(float f) { return fmt::format("{:.2e}", f); }
 std::string FmtStr(const std::string &s, char quote = '\'');
 
 template <class Iterable, class F>
-inline std::string FmtList(const Iterable &list, F fmt, char *prefix = "[",
-                           char *suffix = "]") {
-    return JoinWithComma(Transform<StrVec>(list, fmt), prefix, suffix);
+inline std::string FmtList(const Iterable &list, F fmt,
+                           const char *prefix = "[", const char *suffix = "]",
+                           const char *sep = ", ") {
+    return Join(Transform<std::vector<std::string>>(list, fmt), sep, prefix,
+                suffix);
 }
 
 inline std::string FmtTensorDims(const I64Repeated &dims) {

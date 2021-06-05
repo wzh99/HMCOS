@@ -13,7 +13,7 @@ namespace hos {
 #if defined(WIN32)
 #define DEFAULT_FONT "Segoe UI"
 #elif defined(__APPLE__)
-#define DEFAULT_FONT ".AppleSystemUIFont"
+#define DEFAULT_FONT "Helvetica"
 #endif
 
 /// API for defining a directed graph in Graphviz DOT language.
