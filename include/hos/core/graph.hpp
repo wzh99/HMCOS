@@ -104,19 +104,18 @@ struct Graph {
     void ConnectVerts();
 };
 
-class RpoVertRange {
+class RpoVertRange : public VertRange<Vertex, RpoIter<Vertex>> {
 public:
-    RpoVertRange(const Graph &graph) : graph(graph) {}
+    RpoVertRange(const Graph &graph)
+        : VertRange(Transform<std::vector<VertexRef>>(
+              graph.outputs, [](auto &out) { return VertexRef(out); })) {}
+};
 
-    RpoIter<Vertex> begin() const {
-        return RpoIter(Transform<std::vector<VertexRef>>(
-            graph.outputs, [](auto &out) { return VertexRef(out); }));
-    }
-
-    RpoIter<Vertex> end() const { return RpoIter<Vertex>::End(); }
-
-private:
-    const Graph &graph;
+class DfsVertRange : public VertRange<Vertex, DfsIter<Vertex>> {
+public:
+    DfsVertRange(const Graph &graph)
+        : VertRange(Transform<std::vector<VertexRef>>(
+              graph.inputs, [](auto &in) { return VertexRef(in); })) {}
 };
 
 /// Vertex visitor template that performs dynamic dispatch of visiting methods

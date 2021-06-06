@@ -45,72 +45,148 @@ struct AbstractVertex {
     }
 };
 
-template <class VertType>
-class RpoIter {
+template <class VertType, class Iter>
+class VertIter {
 public:
     using VertRef = std::shared_ptr<VertType>;
 
-    static RpoIter End() { return RpoIter(); }
+    bool End() const { LOG(FATAL) << "End() not implemented."; }
+    VertRef Loop() { LOG(FATAL) << "Loop() not implemented."; }
 
-    RpoIter(const std::vector<VertRef> &outputs);
-    void operator++();
+    void operator++() {
+        auto iter = static_cast<Iter *>(this);
+        while (!iter->End()) {
+            auto result = iter->Loop();
+            if (result) {
+                this->next = result;
+                this->traversed.insert(result);
+                return;
+            }
+        }
+        this->next = nullptr;
+    }
 
     VertRef operator*() const { return next; }
 
-    bool operator==(const RpoIter &other) const {
+    bool operator==(const VertIter &other) const {
         return this->next == other.next;
     }
 
-    bool operator!=(const RpoIter &other) const {
+    bool operator!=(const VertIter &other) const {
         return !this->operator==(other);
     }
 
-private:
-    RpoIter() = default;
+protected:
+    bool hasTraversed(const VertexRef &v) const {
+        return Contains(traversed, v);
+    }
 
+private:
+    VertRef next;
+    std::unordered_set<VertRef> traversed;
+};
+
+template <class VertType>
+class DfsIter : public VertIter<VertType, DfsIter<VertType>> {
+public:
+    using VertRef = std::shared_ptr<VertType>;
+
+    DfsIter() = default;
+    DfsIter(const std::vector<VertRef> &inputs);
+
+    bool End() const { return stack.empty(); }
+    VertRef Loop();
+
+private:
+    std::vector<VertRef> stack;
+};
+
+template <class VertType>
+DfsIter<VertType>::DfsIter(
+    const std::vector<std::shared_ptr<VertType>> &inputs) {
+    for (auto it = inputs.rbegin(); it != inputs.rend(); it++)
+        stack.push_back(*it);
+    this->operator++();
+}
+
+template <class VertType>
+typename std::shared_ptr<VertType> DfsIter<VertType>::Loop() {
+    // Pop one vertex
+    auto vertex = stack.back();
+    stack.pop_back();
+
+    // Skip travered vertex
+    if (this->hasTraversed(vertex)) return nullptr;
+
+    // Add successors to stack
+    auto succs = vertex->GetSuccs();
+    for (auto it = succs.rbegin(); it != succs.rend(); it++)
+        stack.push_back(*it);
+
+    return vertex;
+}
+
+template <class VertType>
+class RpoIter : public VertIter<VertType, RpoIter<VertType>> {
+public:
+    using VertRef = std::shared_ptr<VertType>;
+
+    RpoIter() = default;
+    RpoIter(const std::vector<VertRef> &outputs);
+
+    bool End() const { return stack.empty(); }
+    VertRef Loop();
+
+private:
     struct StackRecord {
         VertRef vertex;
         bool visited;
     };
 
-    VertRef next;
     std::vector<StackRecord> stack;
-    std::unordered_set<VertRef> traversed;
 };
 
 template <class VertType>
 RpoIter<VertType>::RpoIter(
-    const std::vector<RpoIter<VertType>::VertRef> &outputs) {
-    for (auto iter = outputs.rbegin(); iter != outputs.rend(); iter++)
-        stack.push_back({*iter, false});
+    const std::vector<std::shared_ptr<VertType>> &outputs) {
+    for (auto it = outputs.rbegin(); it != outputs.rend(); it++)
+        stack.push_back({*it, false});
     this->operator++();
 }
 
 template <class VertType>
-void RpoIter<VertType>::operator++() {
-    while (!stack.empty()) {
-        // Pop one vertex
-        auto [vertex, visited] = stack.back();
-        stack.pop_back();
+typename std::shared_ptr<VertType> RpoIter<VertType>::Loop() {
+    // Pop one vertex
+    auto [vertex, visited] = stack.back();
+    stack.pop_back();
 
-        // Skip if this vertex is traversed before
-        if (Contains(traversed, vertex)) continue;
+    // Skip if this vertex is traversed before
+    if (this->hasTraversed(vertex)) return nullptr;
 
-        // Apply function to vertex if it has been visited
-        if (visited) {
-            this->next = vertex;
-            traversed.insert(vertex);
-            return;
-        }
+    // Apply function to vertex if it has been visited
+    if (visited) return vertex;
 
-        // Otherwise add predecessors to stack
-        stack.push_back({vertex, true});
-        auto &preds = vertex->preds;
-        for (auto iter = preds.rbegin(); iter != preds.rend(); iter++)
-            stack.push_back({iter->lock(), false});
-    }
+    // Otherwise add predecessors to stack
+    stack.push_back({vertex, true});
+    auto preds = vertex->GetPreds();
+    for (auto it = preds.rbegin(); it != preds.rend(); it++)
+        stack.push_back({*it, false});
 
-    this->next = nullptr;
+    return nullptr;
 }
+
+template <class VertType, class Iter>
+class VertRange {
+public:
+    using VertRef = std::shared_ptr<VertType>;
+
+    VertRange(const std::vector<VertRef> &init) : init(init) {}
+
+    Iter begin() const { return Iter(init); }
+    Iter end() const { return Iter(); }
+
+private:
+    std::vector<VertRef> init;
+};
 
 }  // namespace hos
