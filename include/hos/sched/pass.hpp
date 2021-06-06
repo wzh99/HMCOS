@@ -13,4 +13,9 @@ public:
     void Run(HierGraph &graph) override;
 };
 
+class MakeGroupPass : public HierGraphPass {
+public:
+    void Run(HierGraph &graph) override;
+};
+
 }  // namespace hos

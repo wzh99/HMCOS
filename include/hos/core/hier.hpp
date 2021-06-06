@@ -1,5 +1,6 @@
 #pragma once
 
+#include <hos/core/dom.hpp>
 #include <hos/core/graph.hpp>
 
 namespace hos {

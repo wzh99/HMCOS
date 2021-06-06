@@ -21,9 +21,9 @@ int main(int argc, char const *argv[]) {
 
     // Build hierarchical graph
     HierGraph hier(graph);
-    RunPass<JoinSequencePass>(hier);
+    RunPass<JoinSequencePass, MakeGroupPass>(hier);
     // hier.VisualizeAll("../out", "nasnet_hier");
-    hier.VisualizeTop("../out", "nasnet_top");
+    // hier.VisualizeTop("../out", "nasnet_top");
 
     return 0;
 }

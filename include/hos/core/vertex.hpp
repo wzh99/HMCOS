@@ -77,7 +77,7 @@ public:
     }
 
 protected:
-    bool hasTraversed(const VertexRef &v) const {
+    bool hasTraversed(const VertRef &v) const {
         return Contains(traversed, v);
     }
 

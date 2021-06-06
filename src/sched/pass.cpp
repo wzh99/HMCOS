@@ -106,6 +106,14 @@ private:
     HierGraph *hier;
 };
 
-void JoinSequencePass::Run(HierGraph &graph) { JoinVisitor().Join(graph); }
+void JoinSequencePass::Run(HierGraph &hier) { JoinVisitor().Join(hier); }
+
+void hos::MakeGroupPass::Run(hos::HierGraph &hier) {
+    // Build dominator tree
+    if (hier.inputs.size() > 1)
+        LOG(WARNING)
+            << "Dominator tree will only be built for the first input vertex.";
+    auto domNodes = DomBuilder<HierVertex>().Build(hier.inputs[0]);
+}
 
 }  // namespace hos
