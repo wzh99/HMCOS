@@ -12,7 +12,7 @@ enum class VertexKind {
     OP,
 };
 
-struct Vertex : public AbstractVertex<Vertex> {
+struct Vertex : public VertexBase<Vertex> {
     virtual VertexKind GetKind() const = 0;
 };
 

@@ -4,7 +4,7 @@
 
 namespace hos {
 template <class VertType>
-struct AbstractVertex {
+struct VertexBase {
     using VertRef = std::shared_ptr<VertType>;
     using VertWeakRef = std::weak_ptr<VertType>;
 

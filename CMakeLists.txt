@@ -34,6 +34,3 @@ target_link_libraries(to_graph hos)
 
 add_executable(op_sched src/bin/op_sched.cpp)
 target_link_libraries(op_sched hos)
-
-add_executable(infer_einsum src/bin/infer_einsum.cpp)
-target_link_libraries(infer_einsum hos)

@@ -12,11 +12,16 @@ enum class HierKind {
     GROUP,
 };
 
-struct HierVertex : public AbstractVertex<HierVertex> {
+struct HierVertex : public VertexBase<HierVertex> {
+    /// Node of this vertex in dominator and post-dominator tree
+    std::shared_ptr<DomNode<HierVertex>> dom, postDom;
+
+    virtual std::string Format() const = 0;
     virtual HierKind GetKind() const = 0;
 };
 
 using HierVertRef = std::shared_ptr<HierVertex>;
+using HierDomNodeRef = std::shared_ptr<DomNode<HierVertex>>;
 
 /// Equivalent to `Input`, but appear in a hierarchical graph.
 struct HierInput : public HierVertex {
@@ -25,6 +30,8 @@ struct HierInput : public HierVertex {
     HierInput(const ValueRef &val) : value(val) {
         LOG_ASSERT(val->kind == ValueKind::INPUT);
     }
+
+    std::string Format() const override { return value->name; }
 
     static constexpr auto classKind = HierKind::INPUT;
     HierKind GetKind() const override { return classKind; }
@@ -39,6 +46,8 @@ struct HierOutput : public HierVertex {
     HierOutput(const ValueRef &val) : value(val) {
         LOG_ASSERT(val->kind == ValueKind::RESULT);
     }
+
+    std::string Format() const override { return value->name; }
 
     static constexpr auto classKind = HierKind::OUTPUT;
     HierKind GetKind() const override { return classKind; }
@@ -69,6 +78,8 @@ struct Sequence : public HierVertex {
 
     OpRef Entrance() const { return ops.front(); }
     OpRef Exit() const { return ops.back(); }
+
+    std::string Format() const override;
 
     static constexpr auto classKind = HierKind::SEQUENCE;
     HierKind GetKind() const override { return classKind; }
@@ -114,6 +125,11 @@ struct HierGraph {
 
     /// Visualize top level vertices in this graph
     void VisualizeTop(const std::string &dir, const std::string &name,
+                      const std::string &format = "pdf");
+
+    /// Visualize dominator (or post-dominator) tree of this hierarchical graph
+    void VisualizeDom(bool post, const std::string &dir,
+                      const std::string &name,
                       const std::string &format = "pdf");
 };
 

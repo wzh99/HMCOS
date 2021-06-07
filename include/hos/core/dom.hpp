@@ -1,22 +1,39 @@
 #pragma once
 
-#include <fmt/core.h>
-
 #include <hos/core/vertex.hpp>
 
 namespace hos {
 
 /// Node in dominator tree
 template <class VertType>
-struct DomNode {
-    /// Point back to original vertex in graph
+class DomNode {
+public:
+    DomNode(const std::shared_ptr<VertType> &vertex) : vertex(vertex) {}
+
+    bool Dominates(const DomNode &other) const {
+        return this->in <= other.in && this->out >= other.out;
+    }
+
+    /// Point back to original vertex
     std::weak_ptr<VertType> vertex;
     /// Parent in dominator tree
-    std::shared_ptr<DomNode<VertType>> parent;
+    std::shared_ptr<DomNode> parent;
     /// Children in dominator tree
-    std::vector<std::weak_ptr<DomNode<VertType>>> children;
+    std::vector<std::weak_ptr<DomNode>> children;
+
+private:
     /// In and out index for O(1) time dominance decision
-    uint32_t in, out;
+    uint32_t in = 0, out = 0;
+
+    template <class>
+    friend class NodeNumberer;
+};
+
+template <class VertType, class Ret, class... Args>
+class DomTreeVisitor {
+public:
+    virtual Ret Visit(const std::shared_ptr<DomNode<VertType>> &node,
+                      Args... args) = 0;
 };
 
 /// Node in depth-first spanning tree
@@ -46,13 +63,13 @@ struct DfNode {
     uint32_t child;
 };
 
-/// Builder of dominator tree
+/// Builder of dominator tree, which implements Lengaur-Tarjan algorithm.
+/// See https://www.cl.cam.ac.uk/~mr10/lengtarj.pdf for introduction of this
+/// algorithm.
 template <class VertType>
 class DomBuilder {
 public:
-    using DomNodeType = DomNode<VertType>;
-
-    std::vector<std::shared_ptr<DomNodeType>> Build(
+    std::vector<std::shared_ptr<DomNode<VertType>>> Build(
         const std::shared_ptr<VertType> &root);
 
 private:
@@ -77,6 +94,20 @@ private:
 
     std::vector<DfNodeType> nodes;
     std::unordered_map<std::shared_ptr<VertType>, uint32_t> vertIdx;
+};
+
+template <class VertType>
+class NodeNumberer : public DomTreeVisitor<VertType, Unit> {
+public:
+    Unit Visit(const std::shared_ptr<DomNode<VertType>> &node) override {
+        node->in = number++;
+        for (auto &child : node->children) Visit(child.lock());
+        node->out = number++;
+        return {};
+    }
+
+private:
+    uint32_t number = 0;
 };
 
 template <class VertType>
@@ -117,7 +148,7 @@ std::vector<std::shared_ptr<DomNode<VertType>>> DomBuilder<VertType>::Build(
         }
     }
 
-    for (uint32_t w = nodes.size() - 1; w >= 1; w--) {
+    for (auto w = uint32_t(nodes.size() - 1); w >= 1; w--) {
         // Compute semi-dominator of each vertex
         auto p = parent(w);
         for (auto &vVert : nodes[w].vertex->GetPreds()) {
@@ -136,11 +167,25 @@ std::vector<std::shared_ptr<DomNode<VertType>>> DomBuilder<VertType>::Build(
         nodes[p].bucket.clear();
     }
 
-    return {};
+    // Explicitly define immediate dominators
+    std::vector<std::shared_ptr<DomNode<VertType>>> results;
+    for (auto &node : nodes)
+        results.push_back(std::make_shared<DomNode<VertType>>(node.vertex));
+    for (auto v = 1u; v < nodes.size(); v++) {
+        if (idom(v) != semi(v)) idom(v) = idom(idom(v));
+        auto d = idom(v);
+        results[v]->parent = results[d];
+        results[d]->children.push_back(results[v]);
+    }
+
+    // Number all nodes for O(1) dominance decision
+    NodeNumberer<VertType>().Visit(results[0]);
+
+    return results;
 }
 
 template <class VertType>
-inline uint32_t DomBuilder<VertType>::eval(uint32_t v) {
+uint32_t DomBuilder<VertType>::eval(uint32_t v) {
     if (ancestor(v) == DfNodeType::NONE)
         return v;
     else {
@@ -151,7 +196,7 @@ inline uint32_t DomBuilder<VertType>::eval(uint32_t v) {
 }
 
 template <class VertType>
-inline void DomBuilder<VertType>::compress(uint32_t v) {
+void DomBuilder<VertType>::compress(uint32_t v) {
     auto a = ancestor(v);
     if (ancestor(a) == DfNodeType::NONE) return;
     compress(a);

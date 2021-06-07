@@ -171,7 +171,7 @@ void DotCreator<NodeType>::Render(const std::string &dir,
 
     // Write code to file
     CodeWriter writer(ofs);
-    writer.Write("digraph " + name + " {");
+    writer.Write("digraph " + FmtStr(name, '"') + " {");
     {
         // Write node attribute
         auto indent = writer.Indent();

@@ -108,12 +108,17 @@ private:
 
 void JoinSequencePass::Run(HierGraph &hier) { JoinVisitor().Join(hier); }
 
-void hos::MakeGroupPass::Run(hos::HierGraph &hier) {
+void MakeGroupPass::Run(HierGraph &hier) {
     // Build dominator tree
+    if (hier.inputs.empty()) {
+        LOG(ERROR) << "Input list of the hierarchical graph is empty.";
+        return;
+    }
     if (hier.inputs.size() > 1)
         LOG(WARNING)
             << "Dominator tree will only be built for the first input vertex.";
     auto domNodes = DomBuilder<HierVertex>().Build(hier.inputs[0]);
+    for (auto &node : domNodes) node->vertex.lock()->dom = node;
 }
 
 }  // namespace hos

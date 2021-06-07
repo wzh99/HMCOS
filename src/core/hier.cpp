@@ -12,6 +12,11 @@ Sequence::Sequence(const OpRef &op) : ops{op}, outputs(op->outputs) {
     }
 }
 
+std::string Sequence::Format() const {
+    return FmtList(
+        ops, [](auto &op) { return op->type; }, "", "", "\n");
+}
+
 HierGraph::HierGraph(const Graph &graph) : graph(graph) {
     // Initialize inputs and outputs
     for (auto &in : graph.inputs) {
@@ -104,39 +109,23 @@ public:
         for (auto &in : hier.inputs) Visit(in);
     }
 
-    Unit VisitInput(const HierInputRef &input) {
-        creator.Node(input, input->value->name);
-        visitSuccs(input);
-        return {};
-    }
-
-    Unit VisitOutput(const HierOutputRef &output) {
-        creator.Node(output, output->value->name);
-        return {};
-    }
-
-    Unit VisitSequence(const SequenceRef &seq) {
-        auto label = FmtList(
-            seq->ops, [](const OpRef &op) { return op->type; }, "", "", "\n");
-        creator.Node(seq, label);
-        visitSuccs(seq);
-        return {};
-    }
-
-    Unit VisitGroup(const GroupRef &group) {
-        creator.Node(group, "Group");
-        visitSuccs(group);
-        return {};
-    }
-
-private:
-    void visitSuccs(const HierVertRef &vert) {
+    Unit Visit(const HierVertRef &vert) override {
+        if (Contains(memo, vert)) return {};
+        creator.Node(vert, vert->Format());
+        memo.insert({vert, {}});
         for (auto &succ : vert->succs) {
             Visit(succ);
             creator.Edge(vert, succ);
         }
+        return {};
     }
 
+    Unit VisitInput(const HierInputRef &input) override { return {}; }
+    Unit VisitOutput(const HierOutputRef &output) override { return {}; }
+    Unit VisitSequence(const SequenceRef &seq) override { return {}; }
+    Unit VisitGroup(const GroupRef &group) override { return {}; }
+
+private:
     DotCreator<HierVertRef> &creator;
 };
 
@@ -144,6 +133,54 @@ void HierGraph::VisualizeTop(const std::string &dir, const std::string &name,
                              const std::string &format) {
     DotCreator<HierVertRef> creator(name);
     HierVizTopVisitor(creator).Visualize(*this);
+    creator.Render(dir, format);
+}
+
+class HierDomVizVisitor
+    : public DomTreeVisitor<HierVertex, Unit, const HierDomNodeRef &> {
+public:
+    HierDomVizVisitor(DotCreator<HierDomNodeRef> &creator) : creator(creator) {}
+
+    Unit Visit(const HierDomNodeRef &node,
+               const HierDomNodeRef &parent) override {
+        creator.Node(node, node->vertex.lock()->Format());
+        for (auto &childWeak : node->children) {
+            auto child = childWeak.lock();
+            Visit(child, node);
+            creator.Edge(node, child);
+        }
+        return {};
+    }
+
+private:
+    DotCreator<HierDomNodeRef> &creator;
+};
+
+void HierGraph::VisualizeDom(bool post, const std::string &dir,
+                             const std::string &name,
+                             const std::string &format) {
+    DotCreator<HierDomNodeRef> creator(name);
+    if (post) {
+        if (outputs.empty()) {
+            LOG(ERROR) << "Output list of the hierarchical graph is empty.";
+            return;
+        }
+        if (!outputs[0]->postDom) {
+            LOG(ERROR) << "Post-dominator tree has not been built.";
+            return;
+        }
+        HierDomVizVisitor(creator).Visit(outputs[0]->postDom, nullptr);
+    } else {
+        if (inputs.empty()) {
+            LOG(ERROR) << "Input list of the hierarchical graph is empty.";
+            return;
+        }
+        if (!inputs[0]->dom) {
+            LOG(ERROR) << "Dominator tree has not been built.";
+            return;
+        }
+        HierDomVizVisitor(creator).Visit(inputs[0]->dom, nullptr);
+    }
     creator.Render(dir, format);
 }
 
