@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <functional>
 #include <numeric>
 #include <string>
 #include <unordered_map>

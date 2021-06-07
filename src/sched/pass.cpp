@@ -119,6 +119,19 @@ void MakeGroupPass::Run(HierGraph &hier) {
             << "Dominator tree will only be built for the first input vertex.";
     auto domNodes = DomBuilder<HierVertex>().Build(hier.inputs[0]);
     for (auto &node : domNodes) node->vertex.lock()->dom = node;
+
+    // Build post-dominator tree
+    if (hier.outputs.empty()) {
+        LOG(ERROR) << "Output list of the hierarchical graph is empty.";
+        return;
+    }
+    if (hier.outputs.size() > 1)
+        LOG(WARNING) << "Post-dominator tree will only be built for the first "
+                        "output vertex.";
+    auto postDomNodes = DomBuilder<HierVertex>().Build(
+        hier.outputs[0], std::mem_fn(&HierVertex::Succs),
+        std::mem_fn(&HierVertex::Preds));
+    for (auto &node : postDomNodes) node->vertex.lock()->postDom = node;
 }
 
 }  // namespace hos

@@ -5,17 +5,17 @@
 namespace hos {
 
 /// Node in dominator tree
-template <class VertType>
+template <class Vert>
 class DomNode {
 public:
-    DomNode(const std::shared_ptr<VertType> &vertex) : vertex(vertex) {}
+    DomNode(const std::shared_ptr<Vert> &vertex) : vertex(vertex) {}
 
     bool Dominates(const DomNode &other) const {
         return this->in <= other.in && this->out >= other.out;
     }
 
     /// Point back to original vertex
-    std::weak_ptr<VertType> vertex;
+    std::weak_ptr<Vert> vertex;
     /// Parent in dominator tree
     std::shared_ptr<DomNode> parent;
     /// Children in dominator tree
@@ -29,22 +29,22 @@ private:
     friend class NodeNumberer;
 };
 
-template <class VertType, class Ret, class... Args>
+template <class Vert, class Ret, class... Args>
 class DomTreeVisitor {
 public:
-    virtual Ret Visit(const std::shared_ptr<DomNode<VertType>> &node,
+    virtual Ret Visit(const std::shared_ptr<DomNode<Vert>> &node,
                       Args... args) = 0;
 };
 
 /// Node in depth-first spanning tree
 /// This node is intermediate structure during construction of dominator tree.
-template <class VertType>
+template <class Vert>
 struct DfNode {
     /// Node pointer is null
     static constexpr auto NONE = UINT32_MAX;
 
     /// Point to the actual vertex
-    std::shared_ptr<VertType> vertex;
+    std::shared_ptr<Vert> vertex;
     /// Parent of this node in depth-first spanning tree
     uint32_t parent;
     /// Semi-dominator
@@ -66,14 +66,19 @@ struct DfNode {
 /// Builder of dominator tree, which implements Lengaur-Tarjan algorithm.
 /// See https://www.cl.cam.ac.uk/~mr10/lengtarj.pdf for introduction of this
 /// algorithm.
-template <class VertType>
+template <class Vert>
 class DomBuilder {
 public:
-    std::vector<std::shared_ptr<DomNode<VertType>>> Build(
-        const std::shared_ptr<VertType> &root);
+    using VertRef = std::shared_ptr<Vert>;
+    using DomNodeRef = std::shared_ptr<DomNode<Vert>>;
+    using VertListFunc = std::function<std::vector<VertRef>(const VertRef &)>;
+
+    std::vector<DomNodeRef> Build(
+        const VertRef &root, VertListFunc getPreds = std::mem_fn(&Vert::Preds),
+        VertListFunc getSuccs = std::mem_fn(&Vert::Succs));
 
 private:
-    using DfNodeType = DfNode<VertType>;
+    using DfNodeType = DfNode<Vert>;
 
     uint32_t eval(uint32_t v);
     void compress(uint32_t v);
@@ -92,14 +97,15 @@ private:
 
 #undef DFNODE_FIELD
 
+    VertListFunc getPreds, getSuccs;
     std::vector<DfNodeType> nodes;
-    std::unordered_map<std::shared_ptr<VertType>, uint32_t> vertIdx;
+    std::unordered_map<VertRef, uint32_t> vertIdx;
 };
 
-template <class VertType>
-class NodeNumberer : public DomTreeVisitor<VertType, Unit> {
+template <class Vert>
+class NodeNumberer : public DomTreeVisitor<Vert, Unit> {
 public:
-    Unit Visit(const std::shared_ptr<DomNode<VertType>> &node) override {
+    Unit Visit(const std::shared_ptr<DomNode<Vert>> &node) override {
         node->in = number++;
         for (auto &child : node->children) Visit(child.lock());
         node->out = number++;
@@ -110,14 +116,15 @@ private:
     uint32_t number = 0;
 };
 
-template <class VertType>
-std::vector<std::shared_ptr<DomNode<VertType>>> DomBuilder<VertType>::Build(
-    const std::shared_ptr<VertType> &root) {
+template <class Vert>
+std::vector<std::shared_ptr<DomNode<Vert>>> DomBuilder<Vert>::Build(
+    const std::shared_ptr<Vert> &root, VertListFunc getPreds,
+    VertListFunc getSuccs) {
     // Find all nodes by depth-first search
     LOG_ASSERT(root);
-    DfsIter<VertType> end;
+    DfsIter<Vert> end;
     uint32_t count = 0;
-    for (auto it = DfsIter<VertType>({root}); it != end; ++it) {
+    for (auto it = DfsIter<Vert>({root}, getSuccs); it != end; ++it) {
         this->nodes.push_back({
             *it,               // vertex
             DfNodeType::NONE,  // parent
@@ -139,19 +146,17 @@ std::vector<std::shared_ptr<DomNode<VertType>>> DomBuilder<VertType>::Build(
         return {};
     }
     for (auto v = 0u; v < nodes.size(); v++) {
-        auto &vNode = nodes[v];
-        vNode.semi = v;
-        for (auto &wVert : vNode.vertex->GetSuccs()) {
+        semi(v) = v;
+        for (auto &wVert : getSuccs(nodes[v].vertex)) {
             auto w = vertIdx[wVert];
-            auto &wNode = nodes[w];
-            if (wNode.semi == DfNodeType::NONE) wNode.parent = v;
+            if (semi(w) == DfNodeType::NONE) parent(w) = v;
         }
     }
 
     for (auto w = uint32_t(nodes.size() - 1); w >= 1; w--) {
         // Compute semi-dominator of each vertex
         auto p = parent(w);
-        for (auto &vVert : nodes[w].vertex->GetPreds()) {
+        for (auto &vVert : getPreds(nodes[w].vertex)) {
             auto v = vertIdx[vVert];
             auto u = eval(v);
             if (semi(w) > semi(u)) semi(w) = semi(u);
@@ -168,9 +173,9 @@ std::vector<std::shared_ptr<DomNode<VertType>>> DomBuilder<VertType>::Build(
     }
 
     // Explicitly define immediate dominators
-    std::vector<std::shared_ptr<DomNode<VertType>>> results;
+    std::vector<DomNodeRef> results;
     for (auto &node : nodes)
-        results.push_back(std::make_shared<DomNode<VertType>>(node.vertex));
+        results.push_back(std::make_shared<DomNode<Vert>>(node.vertex));
     for (auto v = 1u; v < nodes.size(); v++) {
         if (idom(v) != semi(v)) idom(v) = idom(idom(v));
         auto d = idom(v);
@@ -179,13 +184,13 @@ std::vector<std::shared_ptr<DomNode<VertType>>> DomBuilder<VertType>::Build(
     }
 
     // Number all nodes for O(1) dominance decision
-    NodeNumberer<VertType>().Visit(results[0]);
+    NodeNumberer<Vert>().Visit(results[0]);
 
     return results;
 }
 
-template <class VertType>
-uint32_t DomBuilder<VertType>::eval(uint32_t v) {
+template <class Vert>
+uint32_t DomBuilder<Vert>::eval(uint32_t v) {
     if (ancestor(v) == DfNodeType::NONE)
         return v;
     else {
@@ -195,8 +200,8 @@ uint32_t DomBuilder<VertType>::eval(uint32_t v) {
     }
 }
 
-template <class VertType>
-void DomBuilder<VertType>::compress(uint32_t v) {
+template <class Vert>
+void DomBuilder<Vert>::compress(uint32_t v) {
     auto a = ancestor(v);
     if (ancestor(a) == DfNodeType::NONE) return;
     compress(a);
@@ -205,8 +210,8 @@ void DomBuilder<VertType>::compress(uint32_t v) {
 }
 
 /// Add edge `(v, w)` to the forest
-template <class VertType>
-void DomBuilder<VertType>::link(uint32_t v, uint32_t w) {
+template <class Vert>
+void DomBuilder<Vert>::link(uint32_t v, uint32_t w) {
     auto s = w;
     while (child(s) != DfNodeType::NONE &&
            semi(best(w)) < semi(best(child(s)))) {

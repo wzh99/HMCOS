@@ -3,10 +3,10 @@
 #include <hos/util/util.hpp>
 
 namespace hos {
-template <class VertType>
+template <class Vert>
 struct VertexBase {
-    using VertRef = std::shared_ptr<VertType>;
-    using VertWeakRef = std::weak_ptr<VertType>;
+    using VertRef = std::shared_ptr<Vert>;
+    using VertWeakRef = std::weak_ptr<Vert>;
 
     /// Predecessor list of vertex
     /// All elements in predecessor or successor list must be distinct.
@@ -14,12 +14,12 @@ struct VertexBase {
     std::vector<VertWeakRef> preds;
     std::vector<VertRef> succs;
 
-    std::vector<VertRef> GetPreds() const {
+    std::vector<VertRef> Preds() const {
         return Transform<std::vector<VertRef>>(
             preds, [](const VertWeakRef &v) { return v.lock(); });
     }
 
-    std::vector<VertRef> GetSuccs() const { return succs; }
+    std::vector<VertRef> Succs() const { return succs; }
 
     static void Connect(const VertRef &tail, const VertRef &head) {
         AddUnique(tail->succs, head);
@@ -45,10 +45,10 @@ struct VertexBase {
     }
 };
 
-template <class VertType, class Iter>
+template <class Vert, class Iter>
 class VertIter {
 public:
-    using VertRef = std::shared_ptr<VertType>;
+    using VertRef = std::shared_ptr<Vert>;
 
     bool End() const { LOG(FATAL) << "End() not implemented."; }
     VertRef Loop() { LOG(FATAL) << "Loop() not implemented."; }
@@ -77,40 +77,42 @@ public:
     }
 
 protected:
-    bool hasTraversed(const VertRef &v) const {
-        return Contains(traversed, v);
-    }
+    bool hasTraversed(const VertRef &v) const { return Contains(traversed, v); }
 
 private:
     VertRef next;
     std::unordered_set<VertRef> traversed;
 };
 
-template <class VertType>
-class DfsIter : public VertIter<VertType, DfsIter<VertType>> {
+template <class Vert>
+class DfsIter : public VertIter<Vert, DfsIter<Vert>> {
 public:
-    using VertRef = std::shared_ptr<VertType>;
+    using VertRef = std::shared_ptr<Vert>;
+    using VertListFunc = std::function<std::vector<VertRef>(const VertRef &)>;
 
     DfsIter() = default;
-    DfsIter(const std::vector<VertRef> &inputs);
+    DfsIter(const std::vector<VertRef> &inputs,
+            VertListFunc getSuccs = std::mem_fn(&Vert::Succs));
 
     bool End() const { return stack.empty(); }
     VertRef Loop();
 
 private:
+    VertListFunc getSuccs;
     std::vector<VertRef> stack;
 };
 
-template <class VertType>
-DfsIter<VertType>::DfsIter(
-    const std::vector<std::shared_ptr<VertType>> &inputs) {
+template <class Vert>
+DfsIter<Vert>::DfsIter(const std::vector<VertRef> &inputs,
+                       VertListFunc getSuccs)
+    : getSuccs(getSuccs) {
     for (auto it = inputs.rbegin(); it != inputs.rend(); it++)
         stack.push_back(*it);
     this->operator++();
 }
 
-template <class VertType>
-typename std::shared_ptr<VertType> DfsIter<VertType>::Loop() {
+template <class Vert>
+std::shared_ptr<Vert> DfsIter<Vert>::Loop() {
     // Pop one vertex
     auto vertex = stack.back();
     stack.pop_back();
@@ -119,20 +121,22 @@ typename std::shared_ptr<VertType> DfsIter<VertType>::Loop() {
     if (this->hasTraversed(vertex)) return nullptr;
 
     // Add successors to stack
-    auto succs = vertex->GetSuccs();
+    auto succs = getSuccs(vertex);
     for (auto it = succs.rbegin(); it != succs.rend(); it++)
         stack.push_back(*it);
 
     return vertex;
 }
 
-template <class VertType>
-class RpoIter : public VertIter<VertType, RpoIter<VertType>> {
+template <class Vert>
+class RpoIter : public VertIter<Vert, RpoIter<Vert>> {
 public:
-    using VertRef = std::shared_ptr<VertType>;
+    using VertRef = std::shared_ptr<Vert>;
+    using VertListFunc = std::function<std::vector<VertRef>(const VertRef &)>;
 
     RpoIter() = default;
-    RpoIter(const std::vector<VertRef> &outputs);
+    RpoIter(const std::vector<VertRef> &outputs,
+            VertListFunc getPreds = std::mem_fn(&Vert::Preds));
 
     bool End() const { return stack.empty(); }
     VertRef Loop();
@@ -143,19 +147,21 @@ private:
         bool visited;
     };
 
+    VertListFunc getPreds;
     std::vector<StackRecord> stack;
 };
 
-template <class VertType>
-RpoIter<VertType>::RpoIter(
-    const std::vector<std::shared_ptr<VertType>> &outputs) {
+template <class Vert>
+RpoIter<Vert>::RpoIter(const std::vector<std::shared_ptr<Vert>> &outputs,
+                       VertListFunc getPreds)
+    : getPreds(getPreds) {
     for (auto it = outputs.rbegin(); it != outputs.rend(); it++)
         stack.push_back({*it, false});
     this->operator++();
 }
 
-template <class VertType>
-typename std::shared_ptr<VertType> RpoIter<VertType>::Loop() {
+template <class Vert>
+std::shared_ptr<Vert> RpoIter<Vert>::Loop() {
     // Pop one vertex
     auto [vertex, visited] = stack.back();
     stack.pop_back();
@@ -168,17 +174,17 @@ typename std::shared_ptr<VertType> RpoIter<VertType>::Loop() {
 
     // Otherwise add predecessors to stack
     stack.push_back({vertex, true});
-    auto preds = vertex->GetPreds();
+    auto preds = getPreds(vertex);
     for (auto it = preds.rbegin(); it != preds.rend(); it++)
         stack.push_back({*it, false});
 
     return nullptr;
 }
 
-template <class VertType, class Iter>
+template <class Vert, class Iter>
 class VertRange {
 public:
-    using VertRef = std::shared_ptr<VertType>;
+    using VertRef = std::shared_ptr<Vert>;
 
     VertRange(const std::vector<VertRef> &init) : init(init) {}
 
