@@ -24,8 +24,8 @@ int main(int argc, char const *argv[]) {
     RunPass<JoinSequencePass, MakeGroupPass>(hier);
     // hier.VisualizeAll("../out", "nasnet_hier");
     // hier.VisualizeTop("../../out", "nasnet-top");
-    hier.VisualizeDom(false, "../../out", "nasnet-dom");
-    hier.VisualizeDom(true, "../../out", "nasnet-postdom");
+    hier.VisualizeDom("../../out", "nasnet-dom");
+    hier.VisualizePostDom("../../out", "nasnet-postdom");
 
     return 0;
 }

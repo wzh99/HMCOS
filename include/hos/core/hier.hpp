@@ -127,10 +127,13 @@ struct HierGraph {
     void VisualizeTop(const std::string &dir, const std::string &name,
                       const std::string &format = "pdf");
 
-    /// Visualize dominator (or post-dominator) tree of this hierarchical graph
-    void VisualizeDom(bool post, const std::string &dir,
-                      const std::string &name,
+    /// Visualize dominator tree of this hierarchical graph
+    void VisualizeDom(const std::string &dir, const std::string &name,
                       const std::string &format = "pdf");
+
+    /// Visualize post-dominator tree of this hierarchical graph
+    void VisualizePostDom(const std::string &dir, const std::string &name,
+                          const std::string &format = "pdf");
 };
 
 /// Visitor of vertices in hierarchical graph

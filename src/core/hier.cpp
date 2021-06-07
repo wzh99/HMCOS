@@ -156,31 +156,34 @@ private:
     DotCreator<HierDomNodeRef> &creator;
 };
 
-void HierGraph::VisualizeDom(bool post, const std::string &dir,
-                             const std::string &name,
+void HierGraph::VisualizeDom(const std::string &dir, const std::string &name,
                              const std::string &format) {
-    DotCreator<HierDomNodeRef> creator(name);
-    if (post) {
-        if (outputs.empty()) {
-            LOG(ERROR) << "Output list of the hierarchical graph is empty.";
-            return;
-        }
-        if (!outputs[0]->postDom) {
-            LOG(ERROR) << "Post-dominator tree has not been built.";
-            return;
-        }
-        HierDomVizVisitor(creator).Visit(outputs[0]->postDom, nullptr);
-    } else {
-        if (inputs.empty()) {
-            LOG(ERROR) << "Input list of the hierarchical graph is empty.";
-            return;
-        }
-        if (!inputs[0]->dom) {
-            LOG(ERROR) << "Dominator tree has not been built.";
-            return;
-        }
-        HierDomVizVisitor(creator).Visit(inputs[0]->dom, nullptr);
+    if (inputs.empty()) {
+        LOG(ERROR) << "Input list of the hierarchical graph is empty.";
+        return;
     }
+    if (!inputs[0]->dom) {
+        LOG(ERROR) << "Dominator tree has not been built.";
+        return;
+    }
+    DotCreator<HierDomNodeRef> creator(name);
+    HierDomVizVisitor(creator).Visit(inputs[0]->dom, nullptr);
+    creator.Render(dir, format);
+}
+
+void HierGraph::VisualizePostDom(const std::string &dir,
+                                 const std::string &name,
+                                 const std::string &format) {
+    if (outputs.empty()) {
+        LOG(ERROR) << "Output list of the hierarchical graph is empty.";
+        return;
+    }
+    if (!outputs[0]->postDom) {
+        LOG(ERROR) << "Post-dominator tree has not been built.";
+        return;
+    }
+    DotCreator<HierDomNodeRef> creator(name);
+    HierDomVizVisitor(creator).Visit(outputs[0]->postDom, nullptr);
     creator.Render(dir, format);
 }
 
