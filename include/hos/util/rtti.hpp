@@ -7,13 +7,13 @@ namespace hos {
 
 /// In this project we adopt LLVM-style RTTI.
 /// The base class should define its own kind enum class and abstract
-/// `GetKind()` method.
-/// Each derived class should implement `GetKind()` method and define static
+/// `Kind()` method.
+/// Each derived class should implement `Kind()` method and define static
 /// constexpr field `classKind`.
 
 template <class Derived, class Base>
 inline bool Is(const std::shared_ptr<Base> &ptr) {
-    return ptr->GetKind() == Derived::classKind;
+    return ptr->Kind() == Derived::classKind;
 }
 
 template <class Derived, class Base>

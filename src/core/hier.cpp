@@ -1,6 +1,5 @@
 #include <hos/core/hier.hpp>
 #include <hos/util/viz.hpp>
-#include <optional>
 
 namespace hos {
 
@@ -19,6 +18,7 @@ std::string Sequence::Format() const {
 
 HierGraph::HierGraph(const Graph &graph) : graph(graph) {
     // Initialize inputs and outputs
+    std::unordered_map<VertexRef, HierVertRef> vertMap;
     for (auto &in : graph.inputs) {
         auto hierIn = std::make_shared<HierInput>(in->value);
         inputs.push_back(hierIn);

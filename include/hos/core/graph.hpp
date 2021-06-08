@@ -13,7 +13,7 @@ enum class VertexKind {
 };
 
 struct Vertex : public VertexBase<Vertex> {
-    virtual VertexKind GetKind() const = 0;
+    virtual VertexKind Kind() const = 0;
 };
 
 struct Input : public Vertex {
@@ -25,7 +25,7 @@ struct Input : public Vertex {
     }
 
     static constexpr auto classKind = VertexKind::INPUT;
-    VertexKind GetKind() const override { return VertexKind::INPUT; }
+    VertexKind Kind() const override { return VertexKind::INPUT; }
 };
 
 using InputRef = std::shared_ptr<Input>;
@@ -41,7 +41,7 @@ struct Output : public Vertex {
     VertexRef Def() const { return preds[0].lock(); }
 
     static constexpr auto classKind = VertexKind::OUTPUT;
-    VertexKind GetKind() const override { return VertexKind::OUTPUT; }
+    VertexKind Kind() const override { return VertexKind::OUTPUT; }
 };
 
 using OutputRef = std::shared_ptr<Output>;
@@ -60,7 +60,7 @@ struct Op : Vertex {
     Op(const Op &other) : name(other.name), type(other.type) {}
 
     static constexpr auto classKind = VertexKind::OP;
-    VertexKind GetKind() const override { return VertexKind::OP; }
+    VertexKind Kind() const override { return VertexKind::OP; }
 };
 
 using OpRef = std::shared_ptr<Op>;
@@ -125,7 +125,7 @@ public:
     virtual Ret Visit(const VertexRef &vert, Args... args) {
         if (Contains(memo, vert)) return memo[vert];
         Ret ret;
-        switch (vert->GetKind()) {
+        switch (vert->Kind()) {
             case VertexKind::INPUT:
                 ret =
                     VisitInput(Cast<Input>(vert), std::forward<Args>(args)...);

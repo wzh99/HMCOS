@@ -26,7 +26,6 @@ static OpTrait extractTrait(const onnx::OpSchema &schema) {
     std::string doc(schema.doc());
 
     // Element-wise
-    auto npos = std::string::npos;
     if (Contains(ewOps, schema.Name()))
         trait = OpTrait(trait | OpTrait::ELEMENT_WISE);
 

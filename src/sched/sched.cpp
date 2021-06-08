@@ -55,14 +55,14 @@ private:
             seq.push_back(op);
             predCnt.erase(op);
             for (auto &succ : op->succs)
-                if (succ->GetKind() == VertexKind::OP) predCnt[As<Op>(succ)]--;
+                if (succ->Kind() == VertexKind::OP) predCnt[As<Op>(succ)]--;
             search(seq, predCnt);
 
             // Remove from sequence and restore predecessor count
             seq.pop_back();
             predCnt.insert({op, 0});
             for (auto &succ : op->succs)
-                if (succ->GetKind() == VertexKind::OP) predCnt[As<Op>(succ)]++;
+                if (succ->Kind() == VertexKind::OP) predCnt[As<Op>(succ)]++;
 
             // Prune if subsequence is already sub-optimal
             if (this->metric(seq) >= best) break;

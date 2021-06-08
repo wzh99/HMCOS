@@ -17,7 +17,7 @@ struct HierVertex : public VertexBase<HierVertex> {
     std::shared_ptr<DomNode<HierVertex>> dom, postDom;
 
     virtual std::string Format() const = 0;
-    virtual HierKind GetKind() const = 0;
+    virtual HierKind Kind() const = 0;
 };
 
 using HierVertRef = std::shared_ptr<HierVertex>;
@@ -34,7 +34,7 @@ struct HierInput : public HierVertex {
     std::string Format() const override { return value->name; }
 
     static constexpr auto classKind = HierKind::INPUT;
-    HierKind GetKind() const override { return classKind; }
+    HierKind Kind() const override { return classKind; }
 };
 
 using HierInputRef = std::shared_ptr<HierInput>;
@@ -50,7 +50,7 @@ struct HierOutput : public HierVertex {
     std::string Format() const override { return value->name; }
 
     static constexpr auto classKind = HierKind::OUTPUT;
-    HierKind GetKind() const override { return classKind; }
+    HierKind Kind() const override { return classKind; }
 };
 
 using HierOutputRef = std::shared_ptr<HierOutput>;
@@ -71,8 +71,6 @@ struct Sequence : public HierVertex {
     /// 1. Parameters are not considered inputs in the sequence.
     /// 2. All input values in sequence must be unique.
     std::vector<ValueRef> inputs, outputs;
-    /// Group that this sequence reside in
-    std::weak_ptr<Group> group;
 
     Sequence(const OpRef &op);
 
@@ -82,7 +80,7 @@ struct Sequence : public HierVertex {
     std::string Format() const override;
 
     static constexpr auto classKind = HierKind::SEQUENCE;
-    HierKind GetKind() const override { return classKind; }
+    HierKind Kind() const override { return classKind; }
 };
 
 using SequenceRef = std::shared_ptr<Sequence>;
@@ -101,7 +99,7 @@ struct Group : public HierVertex {
     std::vector<ValueRef> inputs, outputs;
 
     static constexpr auto classKind = HierKind::GROUP;
-    HierKind GetKind() const override { return classKind; }
+    HierKind Kind() const override { return classKind; }
 };
 
 using GroupRef = std::shared_ptr<Group>;
@@ -114,8 +112,6 @@ struct HierGraph {
     /// by references and can be found through traversal of the graph.
     std::vector<HierInputRef> inputs;
     std::vector<HierOutputRef> outputs;
-    /// Maps vertices in normal graph to ones in hierarchical graph
-    std::unordered_map<VertexRef, HierVertRef> vertMap;
 
     explicit HierGraph(const Graph &graph);
 
@@ -123,7 +119,7 @@ struct HierGraph {
     void VisualizeAll(const std::string &dir, const std::string &name,
                       const std::string &format = "pdf");
 
-    /// Visualize top level vertices in this graph
+    /// Visualize top level vertices in this hierarchical graph
     void VisualizeTop(const std::string &dir, const std::string &name,
                       const std::string &format = "pdf");
 
@@ -148,7 +144,7 @@ public:
     virtual Ret Visit(const HierVertRef &vert, Args... args) {
         if (Contains(memo, vert)) return memo[vert];
         Ret ret;
-        switch (vert->GetKind()) {
+        switch (vert->Kind()) {
             case HierKind::INPUT:
                 ret = VisitInput(Cast<HierInput>(vert),
                                  std::forward<Args>(args)...);

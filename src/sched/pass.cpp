@@ -7,7 +7,6 @@ namespace hos {
 class JoinVisitor : public HierVertVisitor<Unit> {
 public:
     void Join(HierGraph &graph) {
-        this->hier = &graph;
         for (auto &in : graph.inputs) Visit(in);
     }
 
@@ -55,8 +54,8 @@ public:
             if (!canJoinAny) break;
             auto [inc, dec] = computeIncDec(next->ops[0]);
             auto [trans, stable] = states.ComputeState(inc, dec);
-            if (trans > states.GetTransients().Max() ||
-                stable > states.GetStables().Max())
+            if (trans > states.Transients().Max() ||
+                stable > states.Stables().Max())
                 break;  // incurs higher footprint, stop here
             states.Append(inc, dec);
             join(cur, next);
@@ -91,10 +90,7 @@ private:
     /// `next` will be removed.
     void join(const SequenceRef &prev, const SequenceRef &next) {
         // Modify sequence data
-        for (auto &op : next->ops) {
-            prev->ops.push_back(op);
-            hier->vertMap[op] = prev;
-        }
+        for (auto &op : next->ops) prev->ops.push_back(op);
         prev->outputs = next->outputs;
 
         // Reconnect vertices
@@ -102,8 +98,6 @@ private:
         next->preds.clear();
         HierVertex::Replace(next, prev);
     }
-
-    HierGraph *hier;
 };
 
 void JoinSequencePass::Run(HierGraph &hier) { JoinVisitor().Join(hier); }
@@ -128,9 +122,9 @@ void MakeGroupPass::Run(HierGraph &hier) {
     if (hier.outputs.size() > 1)
         LOG(WARNING) << "Post-dominator tree will only be built for the first "
                         "output vertex.";
-    auto postDomNodes = DomBuilder<HierVertex>().Build(
-        hier.outputs[0], std::mem_fn(&HierVertex::Succs),
-        std::mem_fn(&HierVertex::Preds));
+    auto postDomNodes = DomBuilder<HierVertex>(std::mem_fn(&HierVertex::Succs),
+                                               std::mem_fn(&HierVertex::Preds))
+                            .Build(hier.outputs[0]);
     for (auto &node : postDomNodes) node->vertex.lock()->postDom = node;
 }
 

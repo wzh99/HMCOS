@@ -20,8 +20,8 @@ public:
         latest = down;
     }
 
-    const StatVec<int64_t>& GetTransients() const { return transients; }
-    const StatVec<int64_t>& GetStables() const { return stables; }
+    const StatVec<int64_t>& Transients() const { return transients; }
+    const StatVec<int64_t>& Stables() const { return stables; }
 
 private:
     /// Latest stable memory
