@@ -16,6 +16,14 @@ struct HierVertex : public VertexBase<HierVertex> {
     /// Node of this vertex in dominator and post-dominator tree
     std::shared_ptr<DomNode<HierVertex>> dom, postDom;
 
+    bool Dominates(const HierVertex &other) const {
+        return this->dom->Dominates(*other.dom);
+    }
+
+    bool PostDominates(const HierVertex &other) const {
+        return this->postDom->Dominates(*other.postDom);
+    }
+
     virtual std::string Format() const = 0;
     virtual HierKind Kind() const = 0;
 };
@@ -71,12 +79,10 @@ struct Sequence : public HierVertex {
     /// 1. Parameters are not considered inputs in the sequence.
     /// 2. All input values in sequence must be unique.
     std::vector<ValueRef> inputs, outputs;
+    /// Group where this sequence resides in
+    std::weak_ptr<Group> group;
 
     Sequence(const OpRef &op);
-
-    OpRef Entrance() const { return ops.front(); }
-    OpRef Exit() const { return ops.back(); }
-
     std::string Format() const override;
 
     static constexpr auto classKind = HierKind::SEQUENCE;
@@ -97,6 +103,8 @@ struct Group : public HierVertex {
     /// Inputs must be union of inputs of all entrance sequences.
     /// Outputs must be union of outputs of all exit sequences.
     std::vector<ValueRef> inputs, outputs;
+
+    std::string Format() const override;
 
     static constexpr auto classKind = HierKind::GROUP;
     HierKind Kind() const override { return classKind; }

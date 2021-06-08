@@ -16,6 +16,14 @@ std::string Sequence::Format() const {
         ops, [](auto &op) { return op->type; }, "", "", "\n");
 }
 
+std::string Group::Format() const {
+    auto in = FmtList(
+        entrs, [](auto &in) { return in->ops.front()->type; }, "", "", " ");
+    auto out = FmtList(
+        exits, [](auto &out) { return out->ops.back()->type; }, "", "", " ");
+    return in + "\n" + out;
+}
+
 HierGraph::HierGraph(const Graph &graph) : graph(graph) {
     // Initialize inputs and outputs
     std::unordered_map<VertexRef, HierVertRef> vertMap;
@@ -143,6 +151,10 @@ public:
 
     Unit Visit(const HierDomNodeRef &node,
                const HierDomNodeRef &parent) override {
+        if (!node) {
+            LOG(ERROR) << "Dominator tree node not defined.";
+            return {};
+        }
         creator.Node(node, node->vertex.lock()->Format());
         for (auto &childWeak : node->children) {
             auto child = childWeak.lock();

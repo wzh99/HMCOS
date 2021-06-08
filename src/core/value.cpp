@@ -80,7 +80,8 @@ static std::vector<uint8_t> getTensorData(const onnx::TensorProto &tensor) {
 }
 
 uint64_t TensorType::Count() const {
-    return uint64_t(Accumulate(shape, std::multiplies<int64_t>(), 1ll));
+    return uint64_t(
+        std::accumulate(shape.begin(), shape.end(), 1ll, std::multiplies()));
 }
 
 uint64_t TensorType::Size() const { return Count() * scalarSize[dtype]; }

@@ -62,11 +62,6 @@ inline auto Transform(const Src &src, F func) {
     return dst;
 }
 
-template <class Iterable, class BinOp, class Lhs>
-inline auto Accumulate(const Iterable &elems, BinOp binOp, Lhs init) {
-    return std::accumulate(elems.begin(), elems.end(), init, binOp);
-}
-
 template <class Dst, class Src, class Pred>
 inline auto Filter(const Src &src, Pred pred) {
     Dst dst;

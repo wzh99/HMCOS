@@ -28,7 +28,7 @@ public:
 
         // Initialize memory states
         auto cur = seq;
-        MemStateSeq states;
+        MemStateList states;
         auto [inc, dec] = computeIncDec(cur->ops[0]);
         states.Append(inc, dec);
 
@@ -126,6 +126,143 @@ void MakeGroupPass::Run(HierGraph &hier) {
                                                std::mem_fn(&HierVertex::Preds))
                             .Build(hier.outputs[0]);
     for (auto &node : postDomNodes) node->vertex.lock()->postDom = node;
+
+    // Traverse the graph to make groups from cells
+    tape.push_back(hier.inputs[0]);
+    while (true) {
+        // Find cell output and create group from this cell
+        auto cellOut = findCellOut();
+        if (!cellOut) break;
+        auto group = makeGroupFromCell(cellOut);
+    }
+}
+
+SequenceRef MakeGroupPass::findCellOut() {
+    while (!tape.empty()) {
+        // Pick a vertex
+        auto vert = tape.back();
+        tape.pop_back();
+
+        // Check its kind to possibly find cell output
+        switch (vert->Kind()) {
+            case HierKind::INPUT:
+                tape.insert(tape.end(), vert->succs.rbegin(),
+                            vert->succs.rend());
+                break;
+            case HierKind::SEQUENCE: {
+                auto seq = Cast<Sequence>(vert);
+                tape.insert(tape.end(), seq->succs.rbegin(), seq->succs.rend());
+                if (isCellOut(seq)) return seq;
+                break;
+            }
+            case HierKind::GROUP:
+                break;
+            case HierKind::OUTPUT:
+                break;
+            default:
+                LOG(FATAL) << "Unreachable.";
+        }
+    }
+
+    return nullptr;
+}
+
+GroupRef MakeGroupPass::makeGroupFromCell(const SequenceRef &cellOut) {
+    // Search for all sequences that are in this cell
+    auto cellSeqs = collectSeqFrom(
+        cellOut, std::mem_fn(&HierVertex::Preds), [&](const SequenceRef &seq) {
+            // A sequence is in a cell iff. output of the cell post-dominates
+            // the sequence and the sequence does not dominates the cell output.
+            return cellOut->PostDominates(*seq) && !seq->Dominates(*cellOut);
+        });
+
+    // Find all entrances of this group
+    auto group = std::make_shared<Group>();
+    for (auto &seq : cellSeqs) seq->group = group;
+
+    // Test whether this group can intrude on other cells
+
+    return nullptr;
+}
+
+using HierListFunc =
+    std::function<std::vector<HierVertRef>(const HierVertRef &)>;
+
+/// Light-weight sequence visitor that allows efficient and flexible detection
+/// of sequences
+class SequenceDetector {
+public:
+    SequenceDetector(HierListFunc getSuccs) : getSuccs(getSuccs) {}
+
+    virtual void VisitSequence(const SequenceRef &seq) = 0;
+
+    virtual void VisitInput(const HierVertRef &vert) {}
+    virtual void VisitOutput(const HierVertRef &vert) {}
+    virtual void VisitGroup(const HierVertRef &vert) {}
+
+    void Detect(const SequenceRef &origin) {
+        this->origin = origin;
+        stack.push_back(origin);
+        while (!stack.empty()) {
+            auto vert = stack.back();
+            stack.pop_back();
+            switch (vert->Kind()) {
+                case HierKind::SEQUENCE:
+                    VisitSequence(Cast<Sequence>(vert));
+                    break;
+                case HierKind::INPUT:
+                    VisitInput(vert);
+                    break;
+                case HierKind::OUTPUT:
+                    VisitOutput(vert);
+                    break;
+                case HierKind::GROUP:
+                    VisitGroup(vert);
+                    break;
+                default:;
+                    LOG(FATAL) << "Unreachable.";
+            }
+        }
+    }
+
+protected:
+    void pushSuccs(const HierVertRef &vert) {
+        auto succs = getSuccs(vert);
+        stack.insert(stack.end(), succs.rbegin(), succs.rend());
+    }
+
+    SequenceRef origin;
+
+private:
+    HierListFunc getSuccs;
+    std::vector<HierVertRef> stack;
+};
+
+class SequenceCollector : public SequenceDetector {
+public:
+    SequenceCollector(HierListFunc getSuccs,
+                      std::function<bool(const SequenceRef &)> inSet,
+                      std::unordered_set<SequenceRef> &seqs)
+        : SequenceDetector(getSuccs), inSet(inSet), seqs(seqs) {}
+
+    void VisitSequence(const SequenceRef &seq) override {
+        if (Contains(seqs, seq)) return;
+        if (seq != origin && !inSet(seq)) return;
+        seqs.insert(seq);
+        pushSuccs(seq);
+    }
+
+private:
+    std::function<bool(const SequenceRef &)> inSet;
+    std::unordered_set<SequenceRef> &seqs;
+};
+
+std::vector<SequenceRef> MakeGroupPass::collectSeqFrom(
+    const SequenceRef &origin, HierListFunc getSuccs,
+    std::function<bool(const SequenceRef &)> inSet) {
+    std::unordered_set<SequenceRef> seqs;
+    SequenceCollector(getSuccs, inSet, seqs).Detect(origin);
+    return std::vector(seqs.begin(), seqs.end());
 }
 
 }  // namespace hos
