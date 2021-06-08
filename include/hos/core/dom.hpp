@@ -73,9 +73,11 @@ public:
     using DomNodeRef = std::shared_ptr<DomNode<Vert>>;
     using VertListFunc = std::function<std::vector<VertRef>(const VertRef &)>;
 
-    std::vector<DomNodeRef> Build(
-        const VertRef &root, VertListFunc getPreds = std::mem_fn(&Vert::Preds),
-        VertListFunc getSuccs = std::mem_fn(&Vert::Succs));
+    DomBuilder(VertListFunc getPreds = std::mem_fn(&Vert::Preds),
+               VertListFunc getSuccs = std::mem_fn(&Vert::Succs))
+        : getPreds(getPreds), getSuccs(getSuccs) {}
+
+    std::vector<DomNodeRef> Build(const VertRef &root);
 
 private:
     using DfNodeType = DfNode<Vert>;
@@ -118,8 +120,7 @@ private:
 
 template <class Vert>
 std::vector<std::shared_ptr<DomNode<Vert>>> DomBuilder<Vert>::Build(
-    const std::shared_ptr<Vert> &root, VertListFunc getPreds,
-    VertListFunc getSuccs) {
+    const std::shared_ptr<Vert> &root) {
     // Find all nodes by depth-first search
     LOG_ASSERT(root);
     DfsIter<Vert> end;
