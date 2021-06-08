@@ -1,11 +1,12 @@
 #pragma once
 
-#include <hos/util/stat.hpp>
+#include <hos/util/util.hpp>
+#include <hos/util/vec.hpp>
 
 namespace hos {
 
 /// A sequence of memory states
-class MemStateSeq {
+class MemStateList {
 public:
     std::pair<int64_t, int64_t> ComputeState(uint64_t inc, uint64_t dec) const {
         auto up = latest + inc;
@@ -18,6 +19,11 @@ public:
         transients.Append(up);
         stables.Append(down);
         latest = down;
+    }
+
+    std::pair<int64_t, int64_t> operator[](size_t i) const {
+        LOG_ASSERT(i < transients.Size());
+        return {transients[i], stables[i]};
     }
 
     const StatVec<int64_t>& Transients() const { return transients; }

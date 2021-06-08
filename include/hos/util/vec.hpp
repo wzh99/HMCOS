@@ -24,6 +24,8 @@ public:
         max = std::max(max, elem);
     }
 
+    size_t Size() const { return vec.size(); }
+
     Elem Min() const { return min; }
     Elem Max() const { return max; }
 
