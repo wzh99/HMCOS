@@ -31,35 +31,43 @@ struct VertexBase {
         Remove(head->preds, VertWeakRef(tail));
     }
 
-    static void ReplaceSuccOfPreds(const VertRef &oldVert, const VertRef &newVert) {
-        for (auto &predWeak : oldVert->preds) {
-            auto pred = predWeak.lock();
-            if (Contains(pred->succs, newVert))
-                Remove(pred->succs, oldVert);
-            else
-                std::replace(pred->succs.begin(), pred->succs.end(), oldVert,
-                             newVert);
-        }
+    static void ReplaceSuccOfPred(const VertRef &pred, const VertRef &oldVert,
+                                  const VertRef &newVert) {
+        if (Contains(pred->succs, newVert))
+            Remove(pred->succs, oldVert);
+        else
+            std::replace(pred->succs.begin(), pred->succs.end(), oldVert,
+                         newVert);
     }
 
-    static void ReplacePredOfSuccs(const VertRef &oldVert, const VertRef &newVert) {
-        for (auto &succ : oldVert->succs) {
-            if (std::find_if(succ->preds.begin(), succ->preds.end(),
-                             [&](auto &v) { return v.lock() == newVert; }) !=
-                succ->preds.end())
-                RemoveIf(succ->preds,
-                         [&](auto &v) { return v.lock() == oldVert; });
-            else
-                std::replace_if(
-                    succ->preds.begin(), succ->preds.end(),
-                    [&](auto &v) { return v.lock() == oldVert; },
-                    VertWeakRef(newVert));
-        }
+    static void ReplaceSuccOfAllPreds(const VertRef &oldVert,
+                                      const VertRef &newVert) {
+        for (auto &pred : oldVert->preds)
+            ReplaceSuccOfPred(pred.lock(), oldVert, newVert);
+    }
+
+    static void ReplacePredOfSucc(const VertRef &succ, const VertRef &oldVert,
+                                  const VertRef &newVert) {
+        if (std::find_if(succ->preds.begin(), succ->preds.end(), [&](auto &v) {
+                return v.lock() == newVert;
+            }) != succ->preds.end())
+            RemoveIf(succ->preds, [&](auto &v) { return v.lock() == oldVert; });
+        else
+            std::replace_if(
+                succ->preds.begin(), succ->preds.end(),
+                [&](auto &v) { return v.lock() == oldVert; },
+                VertWeakRef(newVert));
+    }
+
+    static void ReplacePredOfAllSuccs(const VertRef &oldVert,
+                                      const VertRef &newVert) {
+        for (auto &succ : oldVert->succs)
+            ReplacePredOfSucc(succ, oldVert, newVert);
     }
 
     static void Replace(const VertRef &oldVert, const VertRef &newVert) {
-        ReplaceSuccOfPreds(oldVert, newVert);
-        ReplacePredOfSuccs(oldVert, newVert);
+        ReplaceSuccOfAllPreds(oldVert, newVert);
+        ReplacePredOfAllSuccs(oldVert, newVert);
     }
 };
 

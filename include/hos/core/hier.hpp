@@ -16,12 +16,12 @@ struct HierVertex : public VertexBase<HierVertex> {
     /// Node of this vertex in dominator and post-dominator tree
     std::shared_ptr<DomNode<HierVertex>> dom, postDom;
 
-    bool Dominates(const HierVertex &other) const {
-        return this->dom->Dominates(*other.dom);
+    bool Dominates(const HierVertex &other, bool strict = false) const {
+        return this->dom->Dominates(*other.dom, strict);
     }
 
-    bool PostDominates(const HierVertex &other) const {
-        return this->postDom->Dominates(*other.postDom);
+    bool PostDominates(const HierVertex &other, bool strict = false) const {
+        return this->postDom->Dominates(*other.postDom, strict);
     }
 
     virtual std::string Format() const = 0;
@@ -29,6 +29,7 @@ struct HierVertex : public VertexBase<HierVertex> {
 };
 
 using HierVertRef = std::shared_ptr<HierVertex>;
+using HierVertWeakRef = std::weak_ptr<HierVertex>;
 using HierDomNodeRef = std::shared_ptr<DomNode<HierVertex>>;
 
 /// Equivalent to `Input`, but appear in a hierarchical graph.
@@ -106,6 +107,15 @@ struct Group : public HierVertex {
 
     std::string Format() const override;
 
+    bool Contains(const SequenceRef &seq) const {
+        return seq->group.lock().get() == this;
+    }
+
+    bool Contains(const HierVertRef &vert) const {
+        return Is<Sequence>(vert) ? this->Contains(Cast<Sequence>(vert))
+                                  : false;
+    }
+
     static constexpr auto classKind = HierKind::GROUP;
     HierKind Kind() const override { return classKind; }
 };
@@ -138,6 +148,13 @@ struct HierGraph {
     /// Visualize post-dominator tree of this hierarchical graph
     void VisualizePostDom(const std::string &dir, const std::string &name,
                           const std::string &format = "pdf");
+};
+
+class RpoHierRange : public VertRange<HierVertex, RpoIter<HierVertex>> {
+public:
+    RpoHierRange(const HierGraph &hier)
+        : VertRange(Transform<std::vector<HierVertRef>>(
+              hier.outputs, [](auto &out) { return HierVertRef(out); })) {}
 };
 
 /// Visitor of vertices in hierarchical graph

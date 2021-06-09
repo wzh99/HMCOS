@@ -22,7 +22,7 @@ int main(int argc, char const *argv[]) {
     // Build hierarchical graph
     HierGraph hier(graph);
     RunPass<JoinSequencePass, MakeGroupPass>(hier);
-    hier.VisualizeAll("../out", "nasnet_hier");
+    hier.VisualizeAll("../../out", "nasnet_hier");
     hier.VisualizeTop("../../out", "nasnet-top");
     // hier.VisualizeDom("../../out", "nasnet-dom");
     // hier.VisualizePostDom("../../out", "nasnet-postdom");

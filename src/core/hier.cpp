@@ -21,7 +21,7 @@ std::string Group::Format() const {
         entrs, [](auto &in) { return in->ops.front()->type; }, "", "", " ");
     auto out = FmtList(
         exits, [](auto &out) { return out->ops.back()->type; }, "", "", " ");
-    return in + "\n" + out;
+    return in + "\n...\n" + out;
 }
 
 HierGraph::HierGraph(const Graph &graph) : graph(graph) {

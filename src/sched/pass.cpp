@@ -102,6 +102,104 @@ private:
 
 void JoinSequencePass::Run(HierGraph &hier) { JoinVisitor().Join(hier); }
 
+using HierListFunc =
+    std::function<std::vector<HierVertRef>(const HierVertRef &)>;
+using SeqPred = std::function<bool(const SequenceRef &)>;
+
+class SequenceDetector : public HierVertVisitor<bool> {
+public:
+    SequenceDetector(SeqPred inSet, HierListFunc getSuccs,
+                     std::unordered_set<SequenceRef> &set,
+                     std::vector<SequenceRef> &frontier)
+        : inSet(inSet), getSuccs(getSuccs), set(set), frontier(frontier) {}
+
+    bool VisitSequence(const SequenceRef &seq) override {
+        if (!inSet(seq)) return false;
+        set.insert(seq);
+        auto succs = getSuccs(seq);
+        bool isFrontier = false;
+        for (auto &succ : succs) isFrontier |= !Visit(succ);
+        if (isFrontier) AddUnique(frontier, seq);
+        return true;
+    }
+
+    bool VisitInput(const HierInputRef &) override { return false; }
+    bool VisitOutput(const HierOutputRef &) override { return false; }
+    bool VisitGroup(const GroupRef &) override { return false; }
+
+private:
+    SeqPred inSet;
+    HierListFunc getSuccs;
+    std::unordered_set<SequenceRef> &set;
+    std::vector<SequenceRef> &frontier;
+};
+
+template <class ValueListFunc>
+inline static std::vector<ValueRef> gatherValues(
+    const std::vector<SequenceRef> &seqs, ValueListFunc getValues) {
+    std::vector<ValueRef> values;
+    for (auto &seq : seqs)
+        for (auto &in : getValues(seq)) AddUnique(values, in);
+    return values;
+}
+
+inline static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
+                                   std::vector<SequenceRef> &&entrs,
+                                   std::vector<SequenceRef> &&exits) {
+    // Set fields of the group
+    auto group = std::make_shared<Group>();
+    group->seqs = std::vector(set.begin(), set.end());
+    for (auto &seq : set) seq->group = group;
+    group->entrs = std::move(entrs);
+    group->inputs = gatherValues(group->entrs, std::mem_fn(&Sequence::inputs));
+    group->exits = std::move(exits);
+    group->outputs =
+        gatherValues(group->exits, std::mem_fn(&Sequence::outputs));
+
+    // Reconnnect vertices
+    for (auto &entr : group->entrs) {
+        std::vector<HierVertWeakRef> newPreds;
+        for (auto &predWeak : entr->preds) {
+            auto pred = predWeak.lock();
+            if (group->Contains(pred))
+                newPreds.push_back(predWeak);
+            else {
+                HierVertex::ReplaceSuccOfPred(pred, entr, group);
+                AddUnique(group->preds, predWeak);
+            }
+        }
+        entr->preds.swap(newPreds);
+    }
+
+    for (auto &exit : group->exits) {
+        std::vector<HierVertRef> newSuccs;
+        for (auto &succ : exit->succs) {
+            if (group->Contains(succ))
+                newSuccs.push_back(succ);
+            else {
+                HierVertex::ReplacePredOfSucc(succ, exit, group);
+                AddUnique(group->succs, succ);
+            }
+        }
+        exit->succs.swap(newSuccs);
+    }
+
+    return group;
+}
+
+inline static void makeGroupFromCell(const SequenceRef &cellOut) {
+    std::unordered_set<SequenceRef> set;
+    std::vector<SequenceRef> entrs;
+    SequenceDetector(
+        [&](const SequenceRef &seq) {
+            return cellOut->PostDominates(*seq) &&
+                   !seq->Dominates(*cellOut, true);
+        },
+        std::mem_fn(&HierVertex::Preds), set, entrs)
+        .Visit(cellOut);
+    createGroup(set, std::move(entrs), {cellOut});
+}
+
 void MakeGroupPass::Run(HierGraph &hier) {
     // Build dominator tree
     if (hier.inputs.empty()) {
@@ -127,142 +225,16 @@ void MakeGroupPass::Run(HierGraph &hier) {
                             .Build(hier.outputs[0]);
     for (auto &node : postDomNodes) node->vertex.lock()->postDom = node;
 
-    // Traverse the graph to make groups from cells
-    tape.push_back(hier.inputs[0]);
-    while (true) {
-        // Find cell output and create group from this cell
-        auto cellOut = findCellOut();
-        if (!cellOut) break;
-        auto group = makeGroupFromCell(cellOut);
-    }
-}
-
-SequenceRef MakeGroupPass::findCellOut() {
-    while (!tape.empty()) {
-        // Pick a vertex
-        auto vert = tape.back();
-        tape.pop_back();
-
-        // Check its kind to possibly find cell output
-        switch (vert->Kind()) {
-            case HierKind::INPUT:
-                tape.insert(tape.end(), vert->succs.rbegin(),
-                            vert->succs.rend());
-                break;
-            case HierKind::SEQUENCE: {
-                auto seq = Cast<Sequence>(vert);
-                tape.insert(tape.end(), seq->succs.rbegin(), seq->succs.rend());
-                if (isCellOut(seq)) return seq;
-                break;
-            }
-            case HierKind::GROUP:
-                break;
-            case HierKind::OUTPUT:
-                break;
-            default:
-                LOG(FATAL) << "Unreachable.";
-        }
+    // Find all cell outputs in reverse post-order
+    std::vector<SequenceRef> cellOuts;
+    for (auto v : RpoHierRange(hier)) {
+        if (!Is<Sequence>(v)) continue;
+        auto seq = Cast<Sequence>(v);
+        if (isCellOut(seq)) cellOuts.push_back(seq);
     }
 
-    return nullptr;
-}
-
-GroupRef MakeGroupPass::makeGroupFromCell(const SequenceRef &cellOut) {
-    // Search for all sequences that are in this cell
-    auto cellSeqs = collectSeqFrom(
-        cellOut, std::mem_fn(&HierVertex::Preds), [&](const SequenceRef &seq) {
-            // A sequence is in a cell iff. output of the cell post-dominates
-            // the sequence and the sequence does not dominates the cell output.
-            return cellOut->PostDominates(*seq) && !seq->Dominates(*cellOut);
-        });
-
-    // Find all entrances of this group
-    auto group = std::make_shared<Group>();
-    for (auto &seq : cellSeqs) seq->group = group;
-
-    // Test whether this group can intrude on other cells
-
-    return nullptr;
-}
-
-using HierListFunc =
-    std::function<std::vector<HierVertRef>(const HierVertRef &)>;
-
-/// Light-weight sequence visitor that allows efficient and flexible detection
-/// of sequences
-class SequenceDetector {
-public:
-    SequenceDetector(HierListFunc getSuccs) : getSuccs(getSuccs) {}
-
-    virtual void VisitSequence(const SequenceRef &seq) = 0;
-
-    virtual void VisitInput(const HierVertRef &vert) {}
-    virtual void VisitOutput(const HierVertRef &vert) {}
-    virtual void VisitGroup(const HierVertRef &vert) {}
-
-    void Detect(const SequenceRef &origin) {
-        this->origin = origin;
-        stack.push_back(origin);
-        while (!stack.empty()) {
-            auto vert = stack.back();
-            stack.pop_back();
-            switch (vert->Kind()) {
-                case HierKind::SEQUENCE:
-                    VisitSequence(Cast<Sequence>(vert));
-                    break;
-                case HierKind::INPUT:
-                    VisitInput(vert);
-                    break;
-                case HierKind::OUTPUT:
-                    VisitOutput(vert);
-                    break;
-                case HierKind::GROUP:
-                    VisitGroup(vert);
-                    break;
-                default:;
-                    LOG(FATAL) << "Unreachable.";
-            }
-        }
-    }
-
-protected:
-    void pushSuccs(const HierVertRef &vert) {
-        auto succs = getSuccs(vert);
-        stack.insert(stack.end(), succs.rbegin(), succs.rend());
-    }
-
-    SequenceRef origin;
-
-private:
-    HierListFunc getSuccs;
-    std::vector<HierVertRef> stack;
-};
-
-class SequenceCollector : public SequenceDetector {
-public:
-    SequenceCollector(HierListFunc getSuccs,
-                      std::function<bool(const SequenceRef &)> inSet,
-                      std::unordered_set<SequenceRef> &seqs)
-        : SequenceDetector(getSuccs), inSet(inSet), seqs(seqs) {}
-
-    void VisitSequence(const SequenceRef &seq) override {
-        if (Contains(seqs, seq)) return;
-        if (seq != origin && !inSet(seq)) return;
-        seqs.insert(seq);
-        pushSuccs(seq);
-    }
-
-private:
-    std::function<bool(const SequenceRef &)> inSet;
-    std::unordered_set<SequenceRef> &seqs;
-};
-
-std::vector<SequenceRef> MakeGroupPass::collectSeqFrom(
-    const SequenceRef &origin, HierListFunc getSuccs,
-    std::function<bool(const SequenceRef &)> inSet) {
-    std::unordered_set<SequenceRef> seqs;
-    SequenceCollector(getSuccs, inSet, seqs).Detect(origin);
-    return std::vector(seqs.begin(), seqs.end());
+    // Build group from cells
+    for (auto &out : cellOuts) makeGroupFromCell(out);
 }
 
 }  // namespace hos

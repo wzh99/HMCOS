@@ -10,8 +10,11 @@ class DomNode {
 public:
     DomNode(const std::shared_ptr<Vert> &vertex) : vertex(vertex) {}
 
-    bool Dominates(const DomNode &other) const {
-        return this->in <= other.in && this->out >= other.out;
+    bool Dominates(const DomNode &other, bool strict = false) const {
+        if (strict)
+            return (this->in < other.in) && (this->out > other.out);
+        else
+            return this->in <= other.in && this->out >= other.out;
     }
 
     /// Point back to original vertex
