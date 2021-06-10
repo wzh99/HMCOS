@@ -1,5 +1,6 @@
 #include <hos/sched/mem.hpp>
 #include <hos/sched/pass.hpp>
+#include <hos/util/fmt.hpp>
 #include <hos/util/op.hpp>
 
 namespace hos {
@@ -110,16 +111,26 @@ class SequenceDetector : public HierVertVisitor<bool> {
 public:
     SequenceDetector(SeqPred inSet, HierListFunc getSuccs,
                      std::unordered_set<SequenceRef> &set,
-                     std::vector<SequenceRef> &frontier)
-        : inSet(inSet), getSuccs(getSuccs), set(set), frontier(frontier) {}
+                     std::vector<SequenceRef> &frontier,
+                     std::vector<SequenceRef> &sink)
+        : inSet(inSet),
+          getSuccs(getSuccs),
+          set(set),
+          frontier(frontier),
+          sink(sink) {}
 
     bool VisitSequence(const SequenceRef &seq) override {
         if (!inSet(seq)) return false;
         set.insert(seq);
         auto succs = getSuccs(seq);
-        bool isFrontier = false;
-        for (auto &succ : succs) isFrontier |= !Visit(succ);
+        bool isFrontier = false, isSink = true;
+        for (auto &succ : succs) {
+            auto notIn = !Visit(succ);
+            isFrontier |= notIn;
+            isSink &= notIn;
+        }
         if (isFrontier) AddUnique(frontier, seq);
+        if (isSink) AddUnique(sink, seq);
         return true;
     }
 
@@ -132,56 +143,96 @@ private:
     HierListFunc getSuccs;
     std::unordered_set<SequenceRef> &set;
     std::vector<SequenceRef> &frontier;
+    std::vector<SequenceRef> &sink;
 };
 
-template <class ValueListFunc>
-inline static std::vector<ValueRef> gatherValues(
-    const std::vector<SequenceRef> &seqs, ValueListFunc getValues) {
-    std::vector<ValueRef> values;
-    for (auto &seq : seqs)
-        for (auto &in : getValues(seq)) AddUnique(values, in);
-    return values;
+static std::vector<ValueRef> gatherInputValues(
+    const std::unordered_set<SequenceRef> set,
+    const std::vector<SequenceRef> &inFront) {
+    std::unordered_set<ValueRef> inputs;
+    for (auto &in : inFront)
+        for (auto &val : in->inputs) inputs.insert(val);
+    for (auto &seq : set)
+        for (auto &out : seq->outputs) inputs.erase(out);
+    return std::vector(inputs.begin(), inputs.end());
 }
 
-inline static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
-                                   std::vector<SequenceRef> &&entrs,
-                                   std::vector<SequenceRef> &&exits) {
+static std::vector<ValueRef> gatherOutputValues(
+    const std::vector<SequenceRef> &outFront) {
+    std::vector<ValueRef> outputs;
+    for (auto &out : outFront)
+        for (auto &val : out->outputs) outputs.push_back(val);
+    return outputs;
+}
+
+inline static void printSequence(const SequenceRef &seq) {
+    fmt::print("{}\n", FmtList(
+                           seq->ops, [](const OpRef &op) { return op->type; },
+                           "", "", " "));
+}
+
+static void printGroup(const GroupRef &group) {
+    fmt::print("GROUP\n");
+    fmt::print("Input frontier:\n");
+    for (auto &in : group->inFront) printSequence(in);
+    fmt::print("Output frontier:\n");
+    for (auto &out : group->outFront) printSequence(out);
+    fmt::print("Entrance:\n");
+    for (auto &entr : group->entrs) printSequence(entr);
+    fmt::print("Exit:\n");
+    for (auto &exit : group->exits) printSequence(exit);
+    fmt::print("Input value:\n");
+    for (auto &val : group->inputs) fmt::print("{}\n", val->name);
+    fmt::print("Output value:\n");
+    for (auto &val : group->outputs) fmt::print("{}\n", val->name);
+    fmt::print("\n");
+}
+
+static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
+                            const std::vector<SequenceRef> &inFront,
+                            const std::vector<SequenceRef> &outFront,
+                            const std::vector<SequenceRef> &entrs,
+                            const std::vector<SequenceRef> &exits) {
     // Set fields of the group
     auto group = std::make_shared<Group>();
     group->seqs = std::vector(set.begin(), set.end());
     for (auto &seq : set) seq->group = group;
-    group->entrs = std::move(entrs);
-    group->inputs = gatherValues(group->entrs, std::mem_fn(&Sequence::inputs));
-    group->exits = std::move(exits);
-    group->outputs =
-        gatherValues(group->exits, std::mem_fn(&Sequence::outputs));
+    group->inFront = inFront;
+    group->outFront = outFront;
+    group->inputs = gatherInputValues(set, inFront);
+    group->outputs = gatherOutputValues(outFront);
+    group->entrs = entrs;
+    group->exits = exits;
 
     // Reconnnect vertices
-    for (auto &entr : group->entrs) {
-        std::vector<HierVertWeakRef> newPreds;
-        for (auto &predWeak : entr->preds) {
-            auto pred = predWeak.lock();
-            if (group->Contains(pred))
-                newPreds.push_back(predWeak);
-            else {
-                HierVertex::ReplaceSuccOfPred(pred, entr, group);
-                AddUnique(group->preds, predWeak);
-            }
-        }
-        entr->preds.swap(newPreds);
+    for (auto &entr : inFront) {
+        entr->preds = Filter<decltype(entr->preds)>(
+            entr->preds, [&](const HierVertWeakRef &predWeak) {
+                auto pred = predWeak.lock();
+                if (group->Contains(pred))
+                    // keep this predecessor as it is in the group
+                    return true;
+                else {
+                    // connect this predcessor to the group instead of the
+                    // sequence
+                    HierVertex::ReplaceSuccOfPred(pred, entr, group);
+                    AddUnique(group->preds, predWeak);
+                    return false;
+                }
+            });
     }
 
-    for (auto &exit : group->exits) {
-        std::vector<HierVertRef> newSuccs;
-        for (auto &succ : exit->succs) {
-            if (group->Contains(succ))
-                newSuccs.push_back(succ);
-            else {
-                HierVertex::ReplacePredOfSucc(succ, exit, group);
-                AddUnique(group->succs, succ);
-            }
-        }
-        exit->succs.swap(newSuccs);
+    for (auto &exit : outFront) {
+        exit->succs = Filter<decltype(exit->succs)>(
+            exit->succs, [&](const HierVertRef &succ) {
+                if (group->Contains(succ))
+                    return true;
+                else {
+                    HierVertex::ReplacePredOfSucc(succ, exit, group);
+                    AddUnique(group->succs, succ);
+                    return false;
+                }
+            });
     }
 
     return group;
@@ -189,15 +240,15 @@ inline static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
 
 inline static void makeGroupFromCell(const SequenceRef &cellOut) {
     std::unordered_set<SequenceRef> set;
-    std::vector<SequenceRef> entrs;
+    std::vector<SequenceRef> inFront, entrs;
     SequenceDetector(
         [&](const SequenceRef &seq) {
             return cellOut->PostDominates(*seq) &&
                    !seq->Dominates(*cellOut, true);
         },
-        std::mem_fn(&HierVertex::Preds), set, entrs)
+        std::mem_fn(&HierVertex::Preds), set, inFront, entrs)
         .Visit(cellOut);
-    createGroup(set, std::move(entrs), {cellOut});
+    createGroup(set, inFront, {cellOut}, entrs, {cellOut});
 }
 
 void MakeGroupPass::Run(HierGraph &hier) {

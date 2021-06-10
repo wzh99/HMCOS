@@ -11,16 +11,16 @@ Sequence::Sequence(const OpRef &op) : ops{op}, outputs(op->outputs) {
     }
 }
 
-std::string Sequence::Format() const {
+std::string Sequence::Label() const {
     return FmtList(
         ops, [](auto &op) { return op->type; }, "", "", "\n");
 }
 
-std::string Group::Format() const {
+std::string Group::Label() const {
     auto in = FmtList(
-        entrs, [](auto &in) { return in->ops.front()->type; }, "", "", " ");
+        inFront, [](auto &in) { return in->ops.front()->type; }, "", "", " ");
     auto out = FmtList(
-        exits, [](auto &out) { return out->ops.back()->type; }, "", "", " ");
+        outFront, [](auto &out) { return out->ops.back()->type; }, "", "", " ");
     return in + "\n...\n" + out;
 }
 
@@ -94,7 +94,7 @@ public:
     Unit VisitGroup(const GroupRef &group, Context ctx) override {
         for (auto &pred : group->preds) Visit(pred.lock(), ctx);
         auto cluster = ctx.Cluster();
-        for (auto &exit : group->exits) Visit(exit, cluster);
+        for (auto &exit : group->outFront) Visit(exit, cluster);
         return {};
     }
 
@@ -119,7 +119,7 @@ public:
 
     Unit Visit(const HierVertRef &vert) override {
         if (Contains(memo, vert)) return {};
-        creator.Node(vert, vert->Format());
+        creator.Node(vert, vert->Label());
         memo.insert({vert, {}});
         for (auto &succ : vert->succs) {
             Visit(succ);
@@ -155,7 +155,7 @@ public:
             LOG(ERROR) << "Dominator tree node not defined.";
             return {};
         }
-        creator.Node(node, node->vertex.lock()->Format());
+        creator.Node(node, node->vertex.lock()->Label());
         for (auto &childWeak : node->children) {
             auto child = childWeak.lock();
             Visit(child, node);

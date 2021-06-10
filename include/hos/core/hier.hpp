@@ -24,7 +24,11 @@ struct HierVertex : public VertexBase<HierVertex> {
         return this->postDom->Dominates(*other.postDom, strict);
     }
 
-    virtual std::string Format() const = 0;
+    /// Inputs of this vertex
+
+    /// Label of this vertex in visualization
+    virtual std::string Label() const = 0;
+    /// Vertex kind for RTTI
     virtual HierKind Kind() const = 0;
 };
 
@@ -40,7 +44,7 @@ struct HierInput : public HierVertex {
         LOG_ASSERT(val->kind == ValueKind::INPUT);
     }
 
-    std::string Format() const override { return value->name; }
+    std::string Label() const override { return value->name; }
 
     static constexpr auto classKind = HierKind::INPUT;
     HierKind Kind() const override { return classKind; }
@@ -56,7 +60,7 @@ struct HierOutput : public HierVertex {
         LOG_ASSERT(val->kind == ValueKind::RESULT);
     }
 
-    std::string Format() const override { return value->name; }
+    std::string Label() const override { return value->name; }
 
     static constexpr auto classKind = HierKind::OUTPUT;
     HierKind Kind() const override { return classKind; }
@@ -84,7 +88,7 @@ struct Sequence : public HierVertex {
     std::weak_ptr<Group> group;
 
     Sequence(const OpRef &op);
-    std::string Format() const override;
+    std::string Label() const override;
 
     static constexpr auto classKind = HierKind::SEQUENCE;
     HierKind Kind() const override { return classKind; }
@@ -97,15 +101,18 @@ struct Group : public HierVertex {
     /// All sequences in this group
     std::vector<SequenceRef> seqs;
     /// Entrance and exit sequences of this group
-    /// Entrance sequences have no predecessors, and exit sequences must have no
-    /// successors.
+    /// Predecessors of each entrance must all be outside of the group.
+    /// Successors of each exits must all be outside of the group
     std::vector<SequenceRef> entrs, exits;
+    /// In and out frontiers of the this group
+    /// Each input frontier must have at least one predecessor from sequence
+    /// outside the group. Each output frontier must have at least one successor
+    /// from sequence outside the group
+    std::vector<SequenceRef> inFront, outFront;
     /// Input and output values of this group
-    /// Inputs must be union of inputs of all entrance sequences.
-    /// Outputs must be union of outputs of all exit sequences.
     std::vector<ValueRef> inputs, outputs;
 
-    std::string Format() const override;
+    std::string Label() const override;
 
     bool Contains(const SequenceRef &seq) const {
         return seq->group.lock().get() == this;
