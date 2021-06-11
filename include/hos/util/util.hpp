@@ -115,3 +115,18 @@ inline bool Contains(const std::unordered_map<KeyType, ValueType> &map,
 }
 
 }  // namespace hos
+
+namespace std {
+
+template <class Elem>
+struct hash<std::vector<Elem>> {
+    std::size_t operator()(const std::vector<Elem> &vec) const {
+        auto val = vec.size();
+        for (auto &elem : vec)
+            val ^=
+                std::hash<Elem>()(elem) + 0x9e3779b9 + (val << 6) + (val >> 2);
+        return val;
+    }
+};
+
+}  // namespace std
