@@ -14,7 +14,7 @@ int main(int argc, char const *argv[]) {
     OpTraitRegistry::Init();
 
     // Build computation graph from ONNX model
-    std::ifstream ifs("../../model/nasnet_mobile.onnx", std::ifstream::binary);
+    std::ifstream ifs(argv[1], std::ifstream::binary);
     onnx::ModelProto model;
     model.ParseFromIstream(&ifs);
     Graph graph(model, "nasnet_mobile");
@@ -22,10 +22,8 @@ int main(int argc, char const *argv[]) {
     // Build hierarchical graph
     HierGraph hier(graph);
     RunPass<JoinSequencePass, MakeGroupPass>(hier);
-    // hier.VisualizeAll("../../out", "nasnet_hier");
-    hier.VisualizeTop("../../out", "nasnet-top");
-    // hier.VisualizeDom("../../out", "nasnet-dom");
-    // hier.VisualizePostDom("../../out", "nasnet-postdom");
+    hier.VisualizeAll(argv[2], "nasnet-all");
+    hier.VisualizeTop(argv[2], "nasnet-top");
 
     return 0;
 }

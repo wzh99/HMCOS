@@ -166,27 +166,24 @@ static std::vector<ValueRef> gatherOutputValues(
 }
 
 inline static void printSequence(const SequenceRef &seq) {
-    fmt::print("{}\n", FmtList(
-                           seq->ops, [](const OpRef &op) { return op->type; },
-                           "", "", " "));
+    LOG(INFO) << FmtList(
+        seq->ops, [](const OpRef &op) { return op->type; }, "", "", " ");
 }
 
 static void printGroup(const GroupRef &group) {
-    fmt::print("# GROUP\n");
-    fmt::print("## Input frontier:\n");
+    LOG(INFO) << "# GROUP";
+    LOG(INFO) << "## Input frontier:";
     for (auto &in : group->inFront) printSequence(in);
-    fmt::print("## Output frontier:\n");
+    LOG(INFO) << "## Output frontier:";
     for (auto &out : group->outFront) printSequence(out);
-    fmt::print("## Entrance:\n");
+    LOG(INFO) << "## Entrance:";
     for (auto &entr : group->entrs) printSequence(entr);
-    fmt::print("## Exit:\n");
+    LOG(INFO) << "## Exit:";
     for (auto &exit : group->exits) printSequence(exit);
-    fmt::print("## Input value:\n");
-    for (auto &val : group->inputs) fmt::print("{}\n", val->name);
-    fmt::print("## Output value:\n");
-    for (auto &val : group->outputs) fmt::print("{}\n", val->name);
-    fmt::print("\n");
-    std::cout.flush();
+    LOG(INFO) << "## Input value:";
+    for (auto &val : group->inputs) LOG(INFO) << val->name;
+    LOG(INFO) << "## Output value:";
+    for (auto &val : group->outputs) LOG(INFO) << val->name;
 }
 
 static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
@@ -235,18 +232,14 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
                 }
             });
     }
-
     return group;
 }
 
 class OutputSizeOptimizer {
 public:
     OutputSizeOptimizer(const std::unordered_set<SequenceRef> &allSeqs,
-                        const SequenceRef &root,
-                        const std::vector<SequenceRef> &frontier)
-        : allSeqs(allSeqs),
-          root(root),
-          frontier(frontier.begin(), frontier.end()) {}
+                        const SequenceRef &root)
+        : allSeqs(allSeqs), root(root) {}
 
     std::vector<SequenceRef> Optimize() {
         // Build predecessor count map
@@ -334,7 +327,6 @@ private:
 
     const std::unordered_set<SequenceRef> &allSeqs;
     const SequenceRef &root;
-    std::unordered_set<SequenceRef> frontier;
     std::unordered_map<std::vector<SequenceRef>, uint64_t> memo;
     std::vector<SequenceRef> bestSet;
     uint64_t minSize;
@@ -351,7 +343,6 @@ inline static void makeGroupFromCell(const SequenceRef &cellOut) {
         },
         std::mem_fn(&HierVertex::Preds), seqs, inFront, entrs)
         .Visit(cellOut);
-    // createGroup(seqs, inFront, {cellOut}, entrs, {cellOut});
 
     // Detect output frontier of the group by intruding on other cells
     std::unordered_set<SequenceRef> intruded;
@@ -360,8 +351,6 @@ inline static void makeGroupFromCell(const SequenceRef &cellOut) {
         [&](const SequenceRef &seq) { return cellOut->Dominates(*seq); },
         std::mem_fn(&HierVertex::Succs), intruded, outFront, exits)
         .Visit(cellOut);
-    seqs.insert(intruded.begin(), intruded.end());
-    // createGroup(seqs, inFront, outFront, entrs, exits);
 
     // Directly create group if intrusion is not possible
     if (Contains(outFront, cellOut)) {
@@ -371,11 +360,16 @@ inline static void makeGroupFromCell(const SequenceRef &cellOut) {
 
     // Try choosing a subset of intruded sequences that minimize their output
     // sizes
-    auto minSizeSet =
-        OutputSizeOptimizer(intruded, cellOut, outFront).Optimize();
-    fmt::print("# SET\n");
-    for (auto &seq : minSizeSet) printSequence(seq);
-    std::cout.flush();
+    auto minSizeSet = OutputSizeOptimizer(intruded, cellOut).Optimize();
+
+    // Build group with intruded sequences
+    outFront.clear();
+    exits.clear();
+    SequenceDetector(
+        [&](const SequenceRef &seq) { return Contains(minSizeSet, seq); },
+        std::mem_fn(&HierVertex::Succs), seqs, outFront, exits)
+        .Visit(cellOut);
+    createGroup(seqs, inFront, outFront, entrs, exits);
 }
 
 void MakeGroupPass::Run(HierGraph &hier) {
