@@ -24,8 +24,6 @@ struct HierVertex : public VertexBase<HierVertex> {
         return this->postDom->Dominates(*other.postDom, strict);
     }
 
-    /// Inputs of this vertex
-
     /// Label of this vertex in visualization
     virtual std::string Label() const = 0;
     /// Vertex kind for RTTI
@@ -79,15 +77,12 @@ struct Sequence : public HierVertex {
     /// All ops in this sequence
     std::vector<OpRef> ops;
     /// Input and output values of this sequence
-    /// There are some differences between inputs of an op and those of a
-    /// sequence:
-    /// 1. Parameters are not considered inputs in the sequence.
-    /// 2. All input values in sequence must be unique.
+    /// Parameters are not considered inputs in sequences.
     std::vector<ValueRef> inputs, outputs;
     /// Group where this sequence resides in
     std::weak_ptr<Group> group;
 
-    Sequence(const OpRef &op);
+    explicit Sequence(const OpRef &op);
     std::string Label() const override;
 
     static constexpr auto classKind = HierKind::SEQUENCE;
@@ -99,7 +94,7 @@ using SequenceRef = std::shared_ptr<Sequence>;
 /// A group of sequences
 struct Group : public HierVertex {
     /// All sequences in this group
-    std::vector<SequenceRef> seqs;
+    // std::vector<SequenceRef> seqs;
     /// Entrance and exit sequences of this group
     /// Predecessors of each entrance must all be outside of the group.
     /// Successors of each exits must all be outside of the group
@@ -109,8 +104,12 @@ struct Group : public HierVertex {
     /// outside the group. Each output frontier must have at least one successor
     /// from sequence outside the group
     std::vector<SequenceRef> inFront, outFront;
-    /// Input and output values of this group
-    std::vector<ValueRef> inputs, outputs;
+    /// Use count of input and output values
+    /// Here we adopt producer-consumer model to describe def-use chains. When a
+    /// value is defined, it produces a number of use counts. When it is used,
+    /// it consumes one use count. Only def-use chains across groups are
+    /// counted.
+    std::vector<std::pair<ValueRef, uint32_t>> consumed, produced;
 
     std::string Label() const override;
 
@@ -134,7 +133,7 @@ struct HierGraph {
     // Original computation graph
     const Graph &graph;
     /// Only inputs and outputs are explicited stored, and others are connected
-    /// by references and can be found through traversal of the graph.
+    /// by edges and can be found through traversal of the graph.
     std::vector<HierInputRef> inputs;
     std::vector<HierOutputRef> outputs;
 

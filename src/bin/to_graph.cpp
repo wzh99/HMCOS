@@ -17,7 +17,9 @@ int main(int argc, char const *argv[]) {
     std::ifstream ifs(argv[1], std::ifstream::binary);
     onnx::ModelProto model;
     model.ParseFromIstream(&ifs);
+    ifs.close();
     Graph graph(model, "nasnet_mobile");
+    model.Clear();
 
     // Build hierarchical graph
     HierGraph hier(graph);

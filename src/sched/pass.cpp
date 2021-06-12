@@ -96,8 +96,7 @@ private:
 
         // Reconnect vertices
         prev->succs = next->succs;
-        next->preds.clear();
-        HierVertex::Replace(next, prev);
+        HierVertex::ReplacePredOfAllSuccs(next, prev);
     }
 };
 
@@ -180,10 +179,63 @@ static void printGroup(const GroupRef &group) {
     for (auto &entr : group->entrs) printSequence(entr);
     LOG(INFO) << "## Exit:";
     for (auto &exit : group->exits) printSequence(exit);
-    LOG(INFO) << "## Input value:";
-    for (auto &val : group->inputs) LOG(INFO) << val->name;
-    LOG(INFO) << "## Output value:";
-    for (auto &val : group->outputs) LOG(INFO) << val->name;
+    LOG(INFO) << "## Value consumed:";
+    for (auto &[val, cnt] : group->consumed)
+        LOG(INFO) << val->name << " " << cnt;
+    LOG(INFO) << "## Value produced:";
+    for (auto &[val, cnt] : group->produced)
+        LOG(INFO) << val->name << " " << cnt;
+}
+
+inline static void initOrInc(std::unordered_map<ValueRef, uint32_t> &map,
+                             const ValueRef &key) {
+    if (Contains(map, key))
+        map[key]++;
+    else
+        map.insert({key, 1});
+}
+
+static std::vector<std::pair<ValueRef, uint32_t>> countConsumed(
+    const std::unordered_set<SequenceRef> &set,
+    const std::vector<SequenceRef> &inFront) {
+    // Find all values consumed by input frontiers
+    std::unordered_map<ValueRef, uint32_t> consumed;
+    for (auto &seq : inFront)
+        for (auto &in : seq->inputs) initOrInc(consumed, in);
+
+    // Remove count of those produced by sequences in the set
+    for (auto &seq : set)
+        for (auto &out : seq->outputs)
+            if (Contains(consumed, out)) consumed[out]--;
+
+    // Prune pairs whose count is zero
+    std::vector<std::pair<ValueRef, uint32_t>> vec;
+    for (auto &[val, cnt] : consumed)
+        if (cnt != 0) vec.push_back({val, cnt});
+
+    return vec;
+}
+
+static std::vector<std::pair<ValueRef, uint32_t>> countProduced(
+    const std::unordered_set<SequenceRef> &set,
+    const std::vector<SequenceRef> &outFront) {
+    // Find all values produced by output frontiers
+    std::unordered_map<ValueRef, uint32_t> produced;
+    for (auto &seq : outFront)
+        for (auto &out : seq->outputs)
+            produced.insert({out, uint32_t(out->uses.size())});
+
+    // Remove count of those consumed by sequences in the set
+    for (auto &seq : set)
+        for (auto &in : seq->inputs)
+            if (Contains(produced, in)) produced[in]--;
+
+    // Prune pairs whose count is zero
+    std::vector<std::pair<ValueRef, uint32_t>> vec;
+    for (auto &[val, cnt] : produced)
+        if (cnt != 0) vec.push_back({val, cnt});
+
+    return vec;
 }
 
 static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
@@ -193,12 +245,11 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
                             const std::vector<SequenceRef> &exits) {
     // Set fields of the group
     auto group = std::make_shared<Group>();
-    group->seqs = std::vector(set.begin(), set.end());
     for (auto &seq : set) seq->group = group;
     group->inFront = inFront;
     group->outFront = outFront;
-    group->inputs = gatherInputValues(set, inFront);
-    group->outputs = gatherOutputValues(outFront);
+    group->consumed = countConsumed(set, inFront);
+    group->produced = countProduced(set, outFront);
     group->entrs = entrs;
     group->exits = exits;
 
@@ -232,6 +283,7 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
                 }
             });
     }
+    
     return group;
 }
 

@@ -3,13 +3,11 @@
 
 namespace hos {
 
-Sequence::Sequence(const OpRef &op) : ops{op}, outputs(op->outputs) {
-    for (auto &in : op->inputs) {
-        if (in->kind == ValueKind::PARAM) continue;
-        if (Contains(this->inputs, in)) continue;
-        this->inputs.push_back(in);
-    }
-}
+Sequence::Sequence(const OpRef &op)
+    : ops{op},
+      inputs(Filter<decltype(inputs)>(
+          op->inputs, [](auto &val) { return val->kind != ValueKind::PARAM; })),
+      outputs(op->outputs) {}
 
 std::string Sequence::Label() const {
     return FmtList(
