@@ -29,7 +29,7 @@ public:
 
         // Initialize memory states
         auto cur = seq;
-        MemStateList states;
+        MemStateVec states;
         auto [inc, dec] = computeIncDec(cur->ops[0]);
         states.Append(inc, dec);
 

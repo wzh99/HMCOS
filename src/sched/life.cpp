@@ -67,7 +67,7 @@ void hos::LifetimeStat::count(std::function<void(uint64_t)> callback) const {
     }
 }
 
-LifetimeStat ComputeLifetime(const OpSeq &opSeq, const Graph &graph) {
+LifetimeStat ComputeLifetime(const std::vector<OpRef> &opSeq, const Graph &graph) {
     // Op sequence must be a full permutation of ops in graph
     LOG_ASSERT(opSeq.size() == graph.ops.size());
 
@@ -122,7 +122,7 @@ LifetimeStat ComputeLifetime(const OpSeq &opSeq, const Graph &graph) {
     return {Lifetime::TIME_INPUT, endTime, std::move(blocks)};
 }
 
-uint64_t EstimatePeak(const hos::OpSeq &seq,
+uint64_t EstimatePeak(const std::vector<OpRef> &seq,
                       const std::vector<InputRef> &inputs) {
     // Initialize use count and total memory size
     uint64_t total = 0;

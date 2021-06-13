@@ -1,9 +1,10 @@
 #include <hos/sched/sched.hpp>
+#include <hos/sched/mem.hpp>
 #include <hos/util/op.hpp>
 
 namespace hos {
 
-OpSeq ReversePostOrder(const Graph &graph) {
+std::vector<OpRef> ReversePostOrder(const Graph &graph) {
     std::vector<OpRef> seq;
     for (auto v : RpoVertRange(graph))
         if (Is<Op>(v)) seq.push_back(Cast<Op>(v));
@@ -12,9 +13,10 @@ OpSeq ReversePostOrder(const Graph &graph) {
 
 class BruteForceSearcher {
 public:
-    BruteForceSearcher(const Graph &graph,
-                       std::function<uint64_t(const OpSeq &)> metric,
-                       std::function<void(const OpSeq &, uint64_t)> callback)
+    BruteForceSearcher(
+        const Graph &graph,
+        std::function<uint64_t(const std::vector<OpRef> &)> metric,
+        std::function<void(const std::vector<OpRef> &, uint64_t)> callback)
         : graph(graph), metric(metric), callback(callback) {}
 
     void Search() {
@@ -27,12 +29,13 @@ public:
 
         // Begin searching
         best = UINT64_MAX;
-        OpSeq seq;
+        std::vector<OpRef> seq;
         search(seq, predCnt);
     }
 
 private:
-    void search(OpSeq &seq, std::unordered_map<OpRef, uint32_t> &predCnt) {
+    void search(std::vector<OpRef> &seq,
+                std::unordered_map<OpRef, uint32_t> &predCnt) {
         // Prune sequences that are sub-optimal
         auto curMetric = this->metric(seq);
         if (curMetric >= best) return;
@@ -70,15 +73,28 @@ private:
     }
 
     const Graph &graph;
-    std::function<uint64_t(const OpSeq &)> metric;
-    std::function<void(const OpSeq &, uint64_t)> callback;
+    std::function<uint64_t(const std::vector<OpRef> &)> metric;
+    std::function<void(const std::vector<OpRef> &, uint64_t)> callback;
     uint64_t best;
 };
 
-void BruteForceSearch(const Graph &graph,
-                      std::function<uint64_t(const OpSeq &)> metric,
-                      std::function<void(const OpSeq &, uint64_t)> callback) {
+void BruteForceSearch(
+    const Graph &graph,
+    std::function<uint64_t(const std::vector<OpRef> &)> metric,
+    std::function<void(const std::vector<OpRef> &, uint64_t)> callback) {
     BruteForceSearcher(graph, metric, callback).Search();
+}
+
+struct Schedule {
+    /// Sequence of ops as scheduling result
+    std::vector<OpRef> result;
+    /// Memory states of scheduled sequence
+    MemStateVec states;
+};
+
+std::vector<OpRef> HierarchicalSchedule(const HierGraph &graph) {
+    //
+    return {};
 }
 
 }  // namespace hos
