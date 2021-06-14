@@ -98,6 +98,14 @@ inline const Elem &MinElem(const std::vector<Elem> &vec, Cmp cmp) {
     return *std::min_element(vec.begin(), vec.end(), cmp);
 }
 
+template <class Elem>
+inline auto Insert(std::vector<Elem> &vec, const Elem &elem) {
+    auto pos = std::upper_bound(vec.begin(), vec.end(), elem);
+    auto idx = pos - vec.begin();
+    vec.insert(pos, elem);
+    return idx;
+}
+
 /// Set
 
 template <class KeyType, class ValueType>
@@ -114,6 +122,28 @@ inline bool Contains(const std::unordered_map<KeyType, ValueType> &map,
     return map.find(elem) != map.end();
 }
 
+/// Hash
+
+template <class Elem>
+inline size_t Hash(const Elem &elem) {
+    return std::hash<Elem>()(elem);
+}
+
+template <class Elem>
+inline size_t HashCombine(size_t seed, const Elem &elem) {
+    return seed ^ (Hash(elem) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+}
+
+template <class Elem, class... Args>
+inline size_t HashCombine(size_t seed, const Elem &elem, const Args &...args) {
+    return HashCombine(HashCombine(seed, elem), args...);
+}
+
+template <class... Args>
+inline size_t Hash(const Args &...args) {
+    return HashCombine(0ull, args...);
+}
+
 }  // namespace hos
 
 namespace std {
@@ -121,11 +151,9 @@ namespace std {
 template <class Elem>
 struct hash<std::vector<Elem>> {
     std::size_t operator()(const std::vector<Elem> &vec) const {
-        auto val = vec.size();
-        for (auto &elem : vec)
-            val ^=
-                std::hash<Elem>()(elem) + 0x9e3779b9 + (val << 6) + (val >> 2);
-        return val;
+        auto seed = vec.size();
+        for (auto &elem : vec) seed = hos::HashCombine(seed, elem);
+        return seed;
     }
 };
 

@@ -10,8 +10,12 @@ class MemStateIter;
 /// Vector of memory states
 class MemStateVec {
 public:
+    MemStateVec(int64_t init = 0) : init(init) {}
+
+    int64_t Latest() const { return stables.Empty() ? init : stables.Back(); }
+
     std::pair<int64_t, int64_t> ComputeState(uint64_t inc, uint64_t dec) const {
-        auto up = latest + inc;
+        auto up = Latest() + inc;
         auto down = up - dec;
         return {up, down};
     }
@@ -22,21 +26,15 @@ public:
         auto [up, down] = ComputeState(inc, dec);
         transients.Append(up);
         stables.Append(down);
-        latest = down;
     }
 
     /// Extend this state vector with the other vector
     /// State values in that vector will be offset by latest state of this
     /// vector
-    void Extend(const MemStateVec& other) {
-        for (auto [t, s] : other) {
-            transients.Append(t + latest);
-            stables.Append(s + latest);
-        }
-        updateLatest();
-    }
+    void Extend(const MemStateVec& other);
 
     std::pair<int64_t, int64_t> operator[](size_t i) const {
+        LOG_ASSERT(i < Size());
         return {transients[i], stables[i]};
     }
 
@@ -49,10 +47,8 @@ public:
     const StatVec<int64_t>& Stables() const { return stables; }
 
 private:
-    void updateLatest() { latest = stables.Empty() ? 0 : stables.Back(); }
-
-    /// Latest stable memory
-    int64_t latest = 0;
+    /// Initial memory offset
+    int64_t init = 0;
     /// Transient states, when an op is being executed
     StatVec<int64_t> transients;
     /// Stable states, when execution of the op has been finished
@@ -89,6 +85,14 @@ inline MemStateIter MemStateVec::begin() const {
 
 inline MemStateIter MemStateVec::end() const {
     return {transients.end(), stables.end()};
+}
+
+inline void MemStateVec::Extend(const MemStateVec& other) {
+    auto last = Latest();
+    for (auto [t, s] : other) {
+        transients.Append(t + last);
+        stables.Append(s + last);
+    }
 }
 
 }  // namespace hos

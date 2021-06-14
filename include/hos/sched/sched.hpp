@@ -17,6 +17,6 @@ void BruteForceSearch(
     std::function<void(const std::vector<OpRef> &, uint64_t)> callback);
 
 /// Schedule ops on a hierarchical graph
-std::vector<OpRef> HierarchicalSchedule(const HierGraph &graph);
+std::vector<OpRef> HierarchicalSchedule(const HierGraph &hier);
 
 }  // namespace hos

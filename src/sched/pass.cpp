@@ -245,6 +245,7 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
                             const std::vector<SequenceRef> &exits) {
     // Set fields of the group
     auto group = std::make_shared<Group>();
+    group->seqs = std::vector(set.begin(), set.end());
     for (auto &seq : set) seq->group = group;
     group->inFront = inFront;
     group->outFront = outFront;
@@ -283,7 +284,7 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
                 }
             });
     }
-    
+
     return group;
 }
 
@@ -342,9 +343,7 @@ private:
         // Choose one sequence and search further
         for (auto &seq : cand) {
             // Add to set
-            auto pos = std::upper_bound(chosen.begin(), chosen.end(), seq) -
-                       chosen.begin();
-            chosen.insert(chosen.begin() + pos, seq);
+            auto idx = Insert(chosen, seq);
 
             // Update predecessor and successor count
             predCount.erase(seq);
@@ -356,7 +355,7 @@ private:
             search(chosen, predCount, succCount);
 
             // Remove from set
-            chosen.erase(chosen.begin() + pos);
+            chosen.erase(chosen.begin() + idx);
 
             // Restore predecessor and successor count
             predCount.insert({seq, 0});
