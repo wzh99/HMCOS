@@ -14,6 +14,10 @@ public:
 
     int64_t Latest() const { return stables.Empty() ? init : stables.Back(); }
 
+    int64_t Peak() const {
+        return transients.Empty() ? init : transients.Max();
+    }
+
     std::pair<int64_t, int64_t> ComputeState(uint64_t inc, uint64_t dec) const {
         auto up = Latest() + inc;
         auto down = up - dec;

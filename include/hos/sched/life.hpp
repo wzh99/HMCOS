@@ -54,6 +54,11 @@ private:
     void count(std::function<void(uint64_t)> callback) const;
 };
 
+static constexpr auto OVERLAP_FAILED = UINT32_MAX;
+
+/// Whether the only output of this op can overlap one of the input
+uint32_t OverlapInput(const OpRef &op);
+
 /// Compute lifetime statistics of a complete op sequence of a graph.
 LifetimeStat ComputeLifetime(const std::vector<OpRef> &opSeq, const Graph &graph);
 

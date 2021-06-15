@@ -285,7 +285,6 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
             });
     }
 
-    printGroup(group);
     return group;
 }
 

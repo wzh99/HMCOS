@@ -4,28 +4,24 @@
 
 namespace hos {
 
-static constexpr uint32_t OVERLAP_FAILED = UINT32_MAX;
-
-/// Whether the only output of this op can overlap one of the input
-static uint32_t overlapInput(const OpRef &op) {
-    // Cannot multiple output op
+uint32_t OverlapInput(const OpRef &op) {
+    // Cannot handle multiple output op
     if (op->outputs.size() > 1) return OVERLAP_FAILED;
     auto &out = op->outputs[0];
 
     // Check if it is element-wise
-    if (OpTraitRegistry::Match(op->type, OpTrait::ELEMENT_WISE)) {
-        // Output of op with single input can always overlap this input
-        if (op->inputs.size() == 1) return 0;
-
-        // Output of op with multiple outputs can only overlap input with same
-        // type as it
-        for (auto i = 0u; i < op->inputs.size(); i++) {
-            auto &in = op->inputs[i];
-            if (in->kind == ValueKind::PARAM) continue;
-            if (in->type == out->type) return i;
-        }
-
+    if (!OpTraitRegistry::Match(op->type, OpTrait::ELEMENT_WISE))
         return OVERLAP_FAILED;
+
+    // Output of op with single input can always overlap this input
+    if (op->inputs.size() == 1) return 0;
+
+    // Output of op with multiple outputs can only overlap input with same
+    // type as it
+    for (auto i = 0u; i < op->inputs.size(); i++) {
+        auto &in = op->inputs[i];
+        if (in->kind == ValueKind::PARAM) continue;
+        if (in->type == out->type) return i;
     }
 
     return OVERLAP_FAILED;
@@ -67,7 +63,8 @@ void hos::LifetimeStat::count(std::function<void(uint64_t)> callback) const {
     }
 }
 
-LifetimeStat ComputeLifetime(const std::vector<OpRef> &opSeq, const Graph &graph) {
+LifetimeStat ComputeLifetime(const std::vector<OpRef> &opSeq,
+                             const Graph &graph) {
     // Op sequence must be a full permutation of ops in graph
     LOG_ASSERT(opSeq.size() == graph.ops.size());
 
@@ -91,7 +88,7 @@ LifetimeStat ComputeLifetime(const std::vector<OpRef> &opSeq, const Graph &graph
         }
 
         // Compute lifetime ending of its inputs
-        auto ovlIdx = overlapInput(op);
+        auto ovlIdx = OverlapInput(op);
         for (auto j = 0u; j < op->inputs.size(); j++) {
             auto &in = op->inputs[j];
             if (in->kind == ValueKind::PARAM) continue;
@@ -149,7 +146,7 @@ uint64_t EstimatePeak(const std::vector<OpRef> &seq,
         nextKill.clear();
 
         // Scan inputs and possibly kill values that are no longer used
-        auto ovlIdx = overlapInput(op);
+        auto ovlIdx = OverlapInput(op);
         for (auto j = 0u; j < op->inputs.size(); j++) {
             // Update use count of this input value
             auto &in = op->inputs[j];
