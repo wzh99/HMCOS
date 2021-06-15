@@ -245,7 +245,7 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
                             const std::vector<SequenceRef> &exits) {
     // Set fields of the group
     auto group = std::make_shared<Group>();
-    group->seqs = std::vector(set.begin(), set.end());
+    // group->seqs = std::vector(set.begin(), set.end());
     for (auto &seq : set) seq->group = group;
     group->inFront = inFront;
     group->outFront = outFront;
@@ -285,9 +285,12 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
             });
     }
 
+    printGroup(group);
     return group;
 }
 
+/// Use DP to find a subset of intruded sequences which minimize size of its
+/// outputs.
 class OutputSizeOptimizer {
 public:
     OutputSizeOptimizer(const std::unordered_set<SequenceRef> &allSeqs,
@@ -386,41 +389,63 @@ private:
 inline static void makeGroupFromCell(const SequenceRef &cellOut) {
     // Detect input frontier of the group
     std::unordered_set<SequenceRef> seqs;
-    std::vector<SequenceRef> inFront, entrs;
+    std::vector<SequenceRef> cellInFront, cellEntrs;
     SequenceDetector(
         [&](const SequenceRef &seq) {
             return cellOut->PostDominates(*seq) &&
                    !seq->Dominates(*cellOut, true);
         },
-        std::mem_fn(&HierVertex::Preds), seqs, inFront, entrs)
+        std::mem_fn(&HierVertex::Preds), seqs, cellInFront, cellEntrs)
         .Visit(cellOut);
 
     // Detect output frontier of the group by intruding on other cells
     std::unordered_set<SequenceRef> intruded;
-    std::vector<SequenceRef> outFront, exits;
+    std::vector<SequenceRef> intrOutFront, intrExits;
     SequenceDetector(
         [&](const SequenceRef &seq) { return cellOut->Dominates(*seq); },
-        std::mem_fn(&HierVertex::Succs), intruded, outFront, exits)
+        std::mem_fn(&HierVertex::Succs), intruded, intrOutFront, intrExits)
         .Visit(cellOut);
 
     // Directly create group if intrusion is not possible
-    if (Contains(outFront, cellOut)) {
-        createGroup(seqs, inFront, {cellOut}, entrs, {cellOut});
+    if (Contains(intrOutFront, cellOut)) {
+        createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
         return;
     }
 
     // Try choosing a subset of intruded sequences that minimize their output
     // sizes
     auto minSizeSet = OutputSizeOptimizer(intruded, cellOut).Optimize();
+    if (minSizeSet.size() <= 2) {  // don't intrude if the subset is trivial
+        createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
+        return;
+    }
 
-    // Build group with intruded sequences
-    outFront.clear();
-    exits.clear();
+    // Find output frontier and exits of intruded sequences
+    intruded.clear();
+    intrOutFront.clear();
+    intrExits.clear();
     SequenceDetector(
         [&](const SequenceRef &seq) { return Contains(minSizeSet, seq); },
-        std::mem_fn(&HierVertex::Succs), seqs, outFront, exits)
+        std::mem_fn(&HierVertex::Succs), intruded, intrOutFront, intrExits)
         .Visit(cellOut);
-    createGroup(seqs, inFront, outFront, entrs, exits);
+    intruded.erase(cellOut);
+
+    // Find input frontier and entrance of intruded sequences
+    std::vector<SequenceRef> intrInFront, intrEntrs;
+    for (auto &succ : cellOut->succs) {
+        if (!Is<Sequence>(succ)) continue;
+        auto seq = Cast<Sequence>(succ);
+        intrInFront.push_back(seq);
+        if (!std::any_of(seq->preds.begin(), seq->preds.end(), [&](auto &pred) {
+                return Is<Sequence>(pred.lock()) &&
+                       Contains(intruded, Cast<Sequence>(pred.lock()));
+            }))
+            intrEntrs.push_back(seq);
+    }
+
+    // Create cell group and intruded group
+    createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
+    createGroup(intruded, intrInFront, intrOutFront, intrEntrs, intrExits);
 }
 
 void MakeGroupPass::Run(HierGraph &hier) {
