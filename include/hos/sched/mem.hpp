@@ -37,6 +37,12 @@ public:
     /// vector
     void Extend(const MemStateVec& other);
 
+    void Swap(MemStateVec& other) {
+        std::swap(this->init, other.init);
+        this->transients.Swap(other.transients);
+        this->stables.Swap(other.stables);
+    }
+
     std::pair<int64_t, int64_t> operator[](size_t i) const {
         LOG_ASSERT(i < Size());
         return {transients[i], stables[i]};
@@ -59,28 +65,12 @@ private:
     StatVec<int64_t> stables;
 };
 
-class MemStateIter {
+using I64VecConstIter = std::vector<int64_t>::const_iterator;
+
+class MemStateIter : public ZipIter<I64VecConstIter, I64VecConstIter> {
 public:
-    using I64VecIter = std::vector<int64_t>::const_iterator;
-
-    MemStateIter(I64VecIter transIter, I64VecIter stableIter)
-        : t(transIter), s(stableIter) {}
-
-    void operator++() {
-        t++;
-        s++;
-    }
-
-    std::pair<int64_t, int64_t> operator*() const { return {*t, *s}; }
-
-    bool operator==(const MemStateIter& other) const { return t == other.t; }
-
-    bool operator!=(const MemStateIter& other) const {
-        return !operator==(other);
-    }
-
-private:
-    I64VecIter t, s;
+    MemStateIter(I64VecConstIter tIter, I64VecConstIter sIter)
+        : ZipIter(tIter, sIter) {}
 };
 
 inline MemStateIter MemStateVec::begin() const {

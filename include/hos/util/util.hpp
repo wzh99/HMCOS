@@ -122,6 +122,41 @@ inline bool Contains(const std::unordered_map<KeyType, ValueType> &map,
     return map.find(elem) != map.end();
 }
 
+/// Iterator
+
+template <class LhsIter, class RhsIter>
+class ZipIter {
+public:
+    ZipIter(LhsIter lhs, RhsIter rhs) : lhs(lhs), rhs(rhs) {}
+
+    void operator++() { ++lhs, ++rhs; }
+
+    auto operator*() const {
+        return std::pair<decltype(*lhs), decltype(*rhs)>(*lhs, *rhs);
+    }
+
+    bool operator!=(const ZipIter &other) const {
+        return lhs != other.lhs && rhs != other.rhs;
+    }
+
+private:
+    LhsIter lhs;
+    RhsIter rhs;
+};
+
+template <class LhsCont, class RhsCont>
+class ZipRange {
+public:
+    ZipRange(LhsCont &lhs, RhsCont &rhs) : lhs(lhs), rhs(rhs) {}
+
+    auto begin() { return ZipIter(lhs.begin(), rhs.begin()); }
+    auto end() { return ZipIter(lhs.end(), rhs.end()); }
+
+private:
+    LhsCont &lhs;
+    RhsCont &rhs;
+};
+
 /// Hash
 
 template <class Elem>

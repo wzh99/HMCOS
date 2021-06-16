@@ -23,6 +23,12 @@ public:
 
     Elem Back() const { return vec.back(); }
 
+    void Swap(StatVec &other) {
+        this->vec.swap(other.vec);
+        std::swap(this->min, other.min);
+        std::swap(this->max, other.max);
+    }
+
     Elem operator[](size_t i) const { return vec[i]; }
 
     auto begin() const { return vec.begin(); }
