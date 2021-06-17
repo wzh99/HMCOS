@@ -148,13 +148,6 @@ struct hash<hos::GroupContext> {
 
 namespace hos {
 
-template <class Vert>
-inline static void decPredCount(
-    const std::shared_ptr<Vert> &vert,
-    std::unordered_map<std::shared_ptr<Vert>, uint32_t> &predCnt) {
-    for (auto &succ : vert->succs) predCnt[succ]--;
-}
-
 /// Extract zero-indegree vertices from predecessor count map and move it to the
 /// ordered vector
 template <class Vert>
@@ -164,6 +157,11 @@ inline static void extractZeroIn(
     for (auto &[vert, cnt] : predCnt)
         if (cnt == 0) Insert(zeroIn, vert);
     for (auto &vert : zeroIn) predCnt.erase(vert);
+}
+
+inline static void printUseCount(
+    const std::unordered_map<ValueRef, uint32_t> &useCnt) {
+    for (auto &[val, cnt] : useCnt) LOG(INFO) << val->name << " " << cnt;
 }
 
 /// A sequence has only one possible schedule. This function also computes
@@ -197,9 +195,10 @@ static SchedResult scheduleSequence(
         auto ovlVal = ovlIdx == OVERLAP_FAILED ? nullptr : op->inputs[0];
         auto dec = 0ull;
         for (auto &val : op->inputs) {
-            if (val->kind == ValueKind::PARAM) continue;
-            if (!Contains(killed, val)) continue;
-            if (val == ovlVal) continue;
+            if (val->kind == ValueKind::PARAM) continue;  // skip parameters
+            if (!Contains(killed, val)) continue;         // value is not killed
+            if (val == ovlVal)
+                continue;  // overlapped value should not be counted
             dec += val->type.Size();
         }
 
@@ -217,6 +216,9 @@ static SchedResult scheduleSequence(
     return {seq->ops, std::move(states)};
 }
 
+/// Schedule group with reverse post-order
+/// This scheduling almost always produces suboptimal result, but is fast. The
+/// result can be used when it does not lift memory peak.
 static SchedResult scheduleGroupRpo(
     const GroupRef &group, std::unordered_map<ValueRef, uint32_t> &useCnt) {
     // Initialize vertex range
@@ -237,12 +239,86 @@ static SchedResult scheduleGroupRpo(
     return {std::move(opSeq), std::move(states)};
 }
 
+/// Use DP algorithm to schedule the group
+static SchedResult scheduleGroupDp(
+    const GroupRef &group,
+    const std::unordered_map<ValueRef, uint32_t> &useCnt) {
+    // Initialize predecessor count of sequences inside group
+    std::unordered_map<SequenceRef, uint32_t> predCnt;
+    for (auto &seq : group->seqs)
+        predCnt.insert({seq, uint32_t(seq->preds.size())});
+
+    // Initialize memoization map
+    std::vector<SequenceRef> zeroIn;
+    extractZeroIn(predCnt, zeroIn);
+    std::unordered_map<std::vector<SequenceRef>, PartialSchedResult<Sequence>>
+        memo;
+    memo.insert(
+        {zeroIn, {SchedResult{{}, MemStateVec()}, std::move(predCnt), useCnt}});
+
+    // Iterate |V| steps
+    auto nVert = group->seqs.size();
+    for (auto i = 0u; i < nVert; i++) {
+        decltype(memo) newMemo;
+        for (const auto &[zeroIn, result] : memo) {
+            // Add another vertex to the schedule
+            for (auto &vert : zeroIn) {
+                // Schedule this vertex
+                auto useCnt = result.useCnt;
+                auto [vertSeq, vertStates] = scheduleSequence(vert, useCnt);
+
+                // Extend op sequence
+                auto seq = result.seq;
+                Extend(seq, vertSeq);
+
+                // Extend memory states
+                auto states = result.states;
+                states.Extend(vertStates);
+
+                // Update zero-indegree set
+                auto predCnt = result.predCnt;
+                for (auto &succ : vert->succs) predCnt[As<Sequence>(succ)]--;
+                auto newZeroIn = zeroIn;
+                Remove(newZeroIn, vert);
+                extractZeroIn(predCnt, newZeroIn);
+
+                // Memoize this partial result
+                PartialSchedResult<Sequence> newResult{
+                    {seq, states}, std::move(predCnt), std::move(useCnt)};
+                if (Contains(newMemo, newZeroIn))
+                    newMemo[newZeroIn].Update(std::move(newResult));
+                else
+                    newMemo.insert({newZeroIn, std::move(newResult)});
+            }
+        }
+        newMemo.swap(memo);
+    }
+
+    return memo[{}];
+}
+
+static void updateGroupUseCount(
+    const GroupRef &group, std::unordered_map<ValueRef, uint32_t> &useCnt) {
+    // Reduce use count consumed by this group
+    std::vector<ValueRef> killed;
+    for (const auto &[val, num] : group->consumed) {
+        auto newCnt = --useCnt[val];
+        if (newCnt == 0) killed.push_back(val);
+    }
+
+    // Erase killed values from use count map
+    for (auto &val : killed) useCnt.erase(val);
+
+    // Add values produces by this group
+    useCnt.insert(group->produced.begin(), group->produced.end());
+}
+
 class HierScheduler {
 public:
     HierScheduler(const HierGraph &hier) : hier(hier) {}
 
     std::vector<OpRef> Schedule() {
-        // Initialize predecessor count for vertices
+        // Initialize predecessor count of vertices
         std::unordered_map<HierVertRef, uint32_t> predCnt;
         for (auto vert : RpoHierRange(hier)) {
             if (Is<HierInput>(vert) || Is<HierOutput>(vert)) continue;
@@ -258,7 +334,7 @@ public:
             useCnt.insert({val, uint32_t(val->uses.size())});
         }
 
-        // Initialize partial result
+        // Initialize memoization map
         std::vector<HierVertRef> zeroIn;
         extractZeroIn(predCnt, zeroIn);
         auto initSize = std::transform_reduce(
@@ -267,35 +343,44 @@ public:
         std::unordered_map<std::vector<HierVertRef>,
                            PartialSchedResult<HierVertex>>
             memo;
-        memo.insert({zeroIn, {{{}, MemStateVec(initSize)}, predCnt, useCnt}});
+        memo.insert({zeroIn,
+                     {SchedResult{{}, MemStateVec(initSize)},
+                      std::move(predCnt), std::move(useCnt)}});
 
-        // Iterate each step
+        // Iterate |V| steps
         for (auto i = 0u; i < nVert; i++) {
             // Iterate each partial result and build partial schedule with one
             // more vertex
             decltype(memo) newMemo;
             for (const auto &[zeroIn, result] : memo) {
-                // Try add another vertex to the sequence
+                // Add another vertex to the schedule
                 for (auto &vert : zeroIn) {
                     // Schedule this vertex
                     auto useCnt = result.useCnt;
                     auto [vertSeq, vertStates] =
                         scheduleVertex(vert, useCnt, result.states);
 
-                    // Update result of this partial schedule
-                    auto seq = result.seq;  // extend op sequence
-                    seq.insert(seq.end(), vertSeq.begin(), vertSeq.end());
-                    auto states = result.states;  // extend memory states
+                    // Extend op sequence
+                    auto seq = result.seq;
+                    Extend(seq, vertSeq);
+
+                    // Extend memory states
+                    auto states = result.states;
                     states.Extend(vertStates);
-                    auto predCnt = result.predCnt;  // update zero-indegree set
-                    decPredCount(vert, predCnt);
+
+                    // Update zero-indegree set
+                    auto predCnt = result.predCnt;
+                    for (auto &succ : vert->succs) predCnt[succ]--;
                     auto newZeroIn = zeroIn;
                     Remove(newZeroIn, vert);
                     extractZeroIn(predCnt, newZeroIn);
+
+                    // Memoize this partial result
                     PartialSchedResult<HierVertex> newResult{
                         {seq, states}, std::move(predCnt), std::move(useCnt)};
-
-                    // Memoize this result
+                    // LOG(INFO) << "# Result";
+                    // newResult.Print();
+                    // printUseCount(newResult.useCnt);
                     if (Contains(newMemo, newZeroIn))
                         newMemo[newZeroIn].Update(std::move(newResult));
                     else
@@ -320,18 +405,28 @@ private:
                 // Check if there is memoized result
                 auto group = Cast<Group>(vert);
                 GroupContext ctx(group, useCnt);
-                if (Contains(groupMemo, ctx)) return groupMemo[ctx];
+                if (Contains(groupMemo, ctx)) {
+                    // Use memoized result, also update use count
+                    updateGroupUseCount(group, useCnt);
+                    return groupMemo[ctx];
+                }
 
                 // Try schedule using reverse post-order
-                auto newUseCnt = useCnt;
-                auto rpoResult = scheduleGroupRpo(group, newUseCnt);
+                auto rpoUseCnt = useCnt;
+                auto rpoResult = scheduleGroupRpo(group, rpoUseCnt);
 
                 // Use RPO schedule if peak is not lifted
                 if (rpoResult.states.Peak() + prevStates.Latest() <=
-                    prevStates.Peak())
+                    prevStates.Peak()) {
+                    useCnt.swap(rpoUseCnt);
                     return rpoResult;
+                }
 
-                //
+                // Schedule group using DP and memoize the result
+                auto dpResult = scheduleGroupDp(group, useCnt);
+                useCnt.swap(rpoUseCnt);  // final use count is same
+                groupMemo.insert({ctx, dpResult});
+                return dpResult;
             }
         }
         LOG(FATAL) << "Unreachable.";

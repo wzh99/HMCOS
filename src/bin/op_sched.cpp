@@ -1,6 +1,7 @@
 #include <fstream>
 #include <hos/sched/pass.hpp>
 #include <hos/sched/sched.hpp>
+#include <hos/sched/life.hpp>
 #include <hos/util/op.hpp>
 
 using namespace hos;
@@ -25,7 +26,9 @@ int main(int argc, char const *argv[]) {
     // Build hierarchical graph
     HierGraph hier(graph);
     RunPass<JoinSequencePass, MakeGroupPass>(hier);
-    HierarchicalSchedule(hier);
+    auto sched = HierarchicalSchedule(hier);
+    // auto sched = ReversePostOrder(graph);
+    LOG(INFO) << EstimatePeak(sched, graph.inputs);
 
     return 0;
 }

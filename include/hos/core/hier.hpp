@@ -94,7 +94,7 @@ using SequenceRef = std::shared_ptr<Sequence>;
 /// A group of sequences
 struct Group : public HierVertex {
     /// All sequences in this group
-    // std::vector<SequenceRef> seqs;
+    std::vector<SequenceRef> seqs;
     /// Entrance and exit sequences of this group
     /// Predecessors of each entrance must all be outside of the group.
     /// Successors of each exits must all be outside of the group

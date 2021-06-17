@@ -106,6 +106,11 @@ inline auto Insert(std::vector<Elem> &vec, const Elem &elem) {
     return idx;
 }
 
+template <class Elem>
+inline void Extend(std::vector<Elem> &lhs, const std::vector<Elem> &rhs) {
+    lhs.insert(lhs.end(), rhs.begin(), rhs.end());
+}
+
 /// Set
 
 template <class KeyType, class ValueType>

@@ -245,7 +245,7 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
                             const std::vector<SequenceRef> &exits) {
     // Set fields of the group
     auto group = std::make_shared<Group>();
-    // group->seqs = std::vector(set.begin(), set.end());
+    group->seqs = std::vector(set.begin(), set.end());
     for (auto &seq : set) seq->group = group;
     group->inFront = inFront;
     group->outFront = outFront;
