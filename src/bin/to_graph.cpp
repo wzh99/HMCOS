@@ -10,9 +10,6 @@ int main(int argc, char const *argv[]) {
     FLAGS_minloglevel = 0;
     google::InitGoogleLogging(argv[0]);
 
-    // Initialize op traits
-    OpTraitRegistry::Init();
-
     // Build computation graph from ONNX model
     std::ifstream ifs(argv[1], std::ifstream::binary);
     onnx::ModelProto model;

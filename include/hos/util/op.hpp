@@ -1,6 +1,6 @@
 #pragma once
 
-#include <onnx/defs/schema.h>
+#include <hos/util/util.hpp>
 
 namespace hos {
 
@@ -17,5 +17,7 @@ public:
 private:
     static std::unordered_map<std::string, OpTrait> opTraits;
 };
+
+bool IsElementWise(const std::string &name);
 
 }

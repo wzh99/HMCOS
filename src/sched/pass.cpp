@@ -44,9 +44,7 @@ public:
             // Always join if next is an element-wise op
             auto next = Cast<Sequence>(cur->succs[0]);
             auto &nextOp = next->ops[0];
-            auto isEw =
-                OpTraitRegistry::Match(nextOp->type, OpTrait::ELEMENT_WISE);
-            if (isEw) {
+            if (IsElementWise(nextOp->type)) {
                 join(cur, next);
                 continue;
             }
