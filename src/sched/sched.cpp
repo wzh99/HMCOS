@@ -105,12 +105,11 @@ struct SchedResult {
     }
 };
 
-template <class Vert>
 struct PartialSchedResult : public SchedResult {
     /// Predecessor count of vertices
     /// This map serializes the graph structure to avoid traversal of the graph
     /// when computing zero-indegree sets.
-    std::unordered_map<std::shared_ptr<Vert>, uint32_t> predCnt;
+    std::unordered_map<HierVertRef, uint32_t> predCnt;
     /// Use count of values
     std::unordered_map<ValueRef, uint32_t> useCnt;
 };
@@ -239,20 +238,48 @@ static SchedResult scheduleGroupRpo(
     return {std::move(opSeq), std::move(states)};
 }
 
+static void updateResult(
+    const HierVertRef &vert, const std::vector<HierVertRef> &zeroIn,
+    const PartialSchedResult &result, SchedResult &&vertResult,
+    std::unordered_map<ValueRef, uint32_t> &&useCnt,
+    std::unordered_map<std::vector<HierVertRef>, PartialSchedResult> &newMemo) {
+    // Extend op sequence
+    auto seq = result.seq;
+    Extend(seq, vertResult.seq);
+
+    // Extend memory states
+    auto states = result.states;
+    states.Extend(vertResult.states);
+
+    // Update zero-indegree set
+    auto predCnt = result.predCnt;
+    for (auto &succ : vert->succs) predCnt[succ]--;
+    auto newZeroIn = zeroIn;
+    Remove(newZeroIn, vert);
+    extractZeroIn(predCnt, newZeroIn);
+
+    // Memoize this partial result
+    PartialSchedResult newResult{
+        {seq, states}, std::move(predCnt), std::move(useCnt)};
+    if (Contains(newMemo, newZeroIn))
+        newMemo[newZeroIn].Update(std::move(newResult));
+    else
+        newMemo.insert({newZeroIn, std::move(newResult)});
+}
+
 /// Use DP algorithm to schedule the group
 static SchedResult scheduleGroupDp(
     const GroupRef &group,
     const std::unordered_map<ValueRef, uint32_t> &useCnt) {
     // Initialize predecessor count of sequences inside group
-    std::unordered_map<SequenceRef, uint32_t> predCnt;
+    std::unordered_map<HierVertRef, uint32_t> predCnt;
     for (auto &seq : group->seqs)
         predCnt.insert({seq, uint32_t(seq->preds.size())});
 
     // Initialize memoization map
-    std::vector<SequenceRef> zeroIn;
+    std::vector<HierVertRef> zeroIn;
     extractZeroIn(predCnt, zeroIn);
-    std::unordered_map<std::vector<SequenceRef>, PartialSchedResult<Sequence>>
-        memo;
+    std::unordered_map<std::vector<HierVertRef>, PartialSchedResult> memo;
     memo.insert(
         {zeroIn, {SchedResult{{}, MemStateVec()}, std::move(predCnt), useCnt}});
 
@@ -263,32 +290,10 @@ static SchedResult scheduleGroupDp(
         for (const auto &[zeroIn, result] : memo) {
             // Add another vertex to the schedule
             for (auto &vert : zeroIn) {
-                // Schedule this vertex
                 auto useCnt = result.useCnt;
-                auto [vertSeq, vertStates] = scheduleSequence(vert, useCnt);
-
-                // Extend op sequence
-                auto seq = result.seq;
-                Extend(seq, vertSeq);
-
-                // Extend memory states
-                auto states = result.states;
-                states.Extend(vertStates);
-
-                // Update zero-indegree set
-                auto predCnt = result.predCnt;
-                for (auto &succ : vert->succs) predCnt[As<Sequence>(succ)]--;
-                auto newZeroIn = zeroIn;
-                Remove(newZeroIn, vert);
-                extractZeroIn(predCnt, newZeroIn);
-
-                // Memoize this partial result
-                PartialSchedResult<Sequence> newResult{
-                    {seq, states}, std::move(predCnt), std::move(useCnt)};
-                if (Contains(newMemo, newZeroIn))
-                    newMemo[newZeroIn].Update(std::move(newResult));
-                else
-                    newMemo.insert({newZeroIn, std::move(newResult)});
+                auto vertResult = scheduleSequence(As<Sequence>(vert), useCnt);
+                updateResult(vert, zeroIn, result, std::move(vertResult),
+                             std::move(useCnt), newMemo);
             }
         }
         newMemo.swap(memo);
@@ -340,9 +345,7 @@ public:
         auto initSize = std::transform_reduce(
             hier.inputs.begin(), hier.inputs.end(), 0ull, std::plus(),
             [](auto &input) { return input->value->type.Size(); });
-        std::unordered_map<std::vector<HierVertRef>,
-                           PartialSchedResult<HierVertex>>
-            memo;
+        std::unordered_map<std::vector<HierVertRef>, PartialSchedResult> memo;
         memo.insert({zeroIn,
                      {SchedResult{{}, MemStateVec(initSize)},
                       std::move(predCnt), std::move(useCnt)}});
@@ -355,36 +358,11 @@ public:
             for (const auto &[zeroIn, result] : memo) {
                 // Add another vertex to the schedule
                 for (auto &vert : zeroIn) {
-                    // Schedule this vertex
                     auto useCnt = result.useCnt;
-                    auto [vertSeq, vertStates] =
+                    auto vertResult =
                         scheduleVertex(vert, useCnt, result.states);
-
-                    // Extend op sequence
-                    auto seq = result.seq;
-                    Extend(seq, vertSeq);
-
-                    // Extend memory states
-                    auto states = result.states;
-                    states.Extend(vertStates);
-
-                    // Update zero-indegree set
-                    auto predCnt = result.predCnt;
-                    for (auto &succ : vert->succs) predCnt[succ]--;
-                    auto newZeroIn = zeroIn;
-                    Remove(newZeroIn, vert);
-                    extractZeroIn(predCnt, newZeroIn);
-
-                    // Memoize this partial result
-                    PartialSchedResult<HierVertex> newResult{
-                        {seq, states}, std::move(predCnt), std::move(useCnt)};
-                    // LOG(INFO) << "# Result";
-                    // newResult.Print();
-                    // printUseCount(newResult.useCnt);
-                    if (Contains(newMemo, newZeroIn))
-                        newMemo[newZeroIn].Update(std::move(newResult));
-                    else
-                        newMemo.insert({newZeroIn, std::move(newResult)});
+                    updateResult(vert, zeroIn, result, std::move(vertResult),
+                                 std::move(useCnt), newMemo);
                 }
             }
             newMemo.swap(memo);
