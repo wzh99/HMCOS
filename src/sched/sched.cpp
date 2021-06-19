@@ -149,10 +149,9 @@ namespace hos {
 
 /// Extract zero-indegree vertices from predecessor count map and move it to the
 /// ordered vector
-template <class Vert>
 inline static void extractZeroIn(
-    std::unordered_map<std::shared_ptr<Vert>, uint32_t> &predCnt,
-    std::vector<std::shared_ptr<Vert>> &zeroIn) {
+    std::unordered_map<HierVertRef, uint32_t> &predCnt,
+    std::vector<HierVertRef> &zeroIn) {
     for (auto &[vert, cnt] : predCnt)
         if (cnt == 0) Insert(zeroIn, vert);
     for (auto &vert : zeroIn) predCnt.erase(vert);
@@ -228,7 +227,7 @@ static SchedResult scheduleGroupRpo(
     // Schedule each sequence in reverse post-order
     std::vector<OpRef> opSeq;
     MemStateVec states;
-    for (auto &vert : vertRange) {
+    for (auto vert : vertRange) {
         auto seq = As<Sequence>(vert);
         auto [vertSeq, vertStates] = scheduleSequence(seq, useCnt);
         opSeq.insert(opSeq.end(), vertSeq.begin(), vertSeq.end());
@@ -406,6 +405,9 @@ private:
                 groupMemo.insert({ctx, dpResult});
                 return dpResult;
             }
+
+            default:
+                LOG(FATAL) << "Unreachable";
         }
         LOG(FATAL) << "Unreachable.";
     }
