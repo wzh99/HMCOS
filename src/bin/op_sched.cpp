@@ -1,7 +1,7 @@
 #include <fstream>
+#include <hos/sched/life.hpp>
 #include <hos/sched/pass.hpp>
 #include <hos/sched/sched.hpp>
-#include <hos/sched/life.hpp>
 
 using namespace hos;
 
@@ -16,9 +16,9 @@ int main(int argc, char const *argv[]) {
     onnx::ModelProto model;
     model.ParseFromIstream(&ifs);
     ifs.close();
-    Graph graph(model, "nasnet_mobile");
+    Graph graph(model, std::filesystem::path(argv[1]).stem());
     model.Clear();
-    
+
     // Build hierarchical graph
     HierGraph hier(graph);
     RunPass<JoinSequencePass, MakeGroupPass>(hier);

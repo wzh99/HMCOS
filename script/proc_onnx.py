@@ -4,8 +4,7 @@ from onnx import shape_inference
 import onnxoptimizer as opt
 
 model_name = 'mobilebert'
-# prefix = "sequential/keras_layer/StatefulPartitionedCall/StatefulPartitionedCall/StatefulPartitionedCall/predict/"
-prefix = 'model/keras_layer/StatefulPartitionedCall/StatefulPartitionedCall/StatefulPartitionedCall/mobile_bert_encoder/StatefulPartitionedCall/'
+prefix = "sequential/keras_layer/StatefulPartitionedCall/StatefulPartitionedCall/StatefulPartitionedCall/predict/"
 
 
 def short_name(name: str):
