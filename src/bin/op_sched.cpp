@@ -26,6 +26,7 @@ int main(int argc, char const *argv[]) {
     auto sched = HierarchicalSchedule(hier);
     // auto sched = ReversePostOrder(graph);
     LOG(INFO) << EstimatePeak(sched, graph.inputs);
+    LOG(INFO) << EstimatePeak(ReversePostOrder(graph), graph.inputs);
 
     return 0;
 }
