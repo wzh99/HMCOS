@@ -45,7 +45,7 @@ void hos::RectPlot::Render(const std::string &dir,
     // Emit Python code for visualization
     CodeWriter writer(ofs);
     // Preamble
-    writer.Write(PYTHON_PREAMBLE);
+    writer.WriteLn(PYTHON_PREAMBLE);
     // Parameters
     for (auto &[key, val] : rcParams)
         writer.WriteLn(fmt::format("mpl.rcParams[{}] = {}", FmtStr(key), val));

@@ -9,24 +9,24 @@ class CodeWriter {
 public:
     CodeWriter(std::ostream &ofs) : ofs(ofs) {}
 
-    void Write(const std::string &str) { ofs << str; }
-
     void WriteLn(const std::string &str) {
-        Write("\n");
-        for (auto i = 0u; i < indCnt; i++) Write(INDENT_STR);
-        Write(str);
+        for (auto i = 0u; i < indCnt; i++) ofs << INDENT_STR;
+        ofs << str << '\n';
     }
+
+    void IncIndent() { indCnt++; }
+    void DecIndent() { indCnt--; }
 
     class Indentation {
     public:
-        Indentation(uint32_t &cnt) : cnt(cnt) { cnt++; }
-        ~Indentation() { cnt--; }
+        Indentation(CodeWriter &writer) : writer(writer) { writer.IncIndent(); }
+        ~Indentation() { writer.DecIndent(); }
 
     private:
-        uint32_t &cnt;
+        CodeWriter &writer;
     };
 
-    Indentation Indent() { return Indentation(indCnt); }
+    Indentation Indent() { return Indentation(*this); }
 
 private:
     static constexpr auto INDENT_STR = "    ";

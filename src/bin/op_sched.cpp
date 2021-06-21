@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <fstream>
 #include <hos/sched/life.hpp>
 #include <hos/sched/pass.hpp>
@@ -16,7 +17,7 @@ int main(int argc, char const *argv[]) {
     onnx::ModelProto model;
     model.ParseFromIstream(&ifs);
     ifs.close();
-    Graph graph(model, std::filesystem::path(argv[1]).stem());
+    Graph graph(model, std::filesystem::path(argv[1]).stem().string());
     model.Clear();
 
     // Build hierarchical graph
