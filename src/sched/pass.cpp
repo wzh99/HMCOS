@@ -198,20 +198,17 @@ static std::vector<std::pair<ValueRef, uint32_t>> countConsumed(
     const std::vector<SequenceRef> &inFront) {
     // Find all values consumed by input frontiers
     std::unordered_map<ValueRef, uint32_t> consumed;
-    for (auto &seq : inFront)
-        for (auto &in : seq->inputs) initOrInc(consumed, in);
+    for (auto &seq : inFront) {
+        for (auto &in : seq->inputs) {
+            auto def = in->def.lock();
+            if (std::any_of(set.begin(), set.end(),
+                            [&](auto &seq) { return seq->Contains(def); }))
+                continue;
+            initOrInc(consumed, in);
+        }
+    }
 
-    // Remove count of those produced by sequences in the set
-    for (auto &seq : set)
-        for (auto &out : seq->outputs)
-            if (Contains(consumed, out)) consumed[out]--;
-
-    // Prune pairs whose count is zero
-    std::vector<std::pair<ValueRef, uint32_t>> vec;
-    for (auto &[val, cnt] : consumed)
-        if (cnt != 0) vec.push_back({val, cnt});
-
-    return vec;
+    return {consumed.begin(), consumed.end()};
 }
 
 static std::vector<std::pair<ValueRef, uint32_t>> countProduced(
@@ -257,7 +254,7 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
         front->preds = Filter<decltype(front->preds)>(
             front->preds, [&](const HierVertWeakRef &predWeak) {
                 auto pred = predWeak.lock();
-                if (group->Contains(pred))
+                if (group->Contains<Sequence>(pred))
                     // keep this predecessor as it is in the group
                     return true;
                 else {
@@ -273,7 +270,7 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
     for (auto &front : outFront) {
         front->succs = Filter<decltype(front->succs)>(
             front->succs, [&](const HierVertRef &succ) {
-                if (group->Contains(succ))
+                if (group->Contains<Sequence>(succ))
                     return true;
                 else {
                     HierVertex::ReplacePredOfSucc(succ, front, group);
@@ -283,6 +280,7 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
             });
     }
 
+    // printGroup(group);
     return group;
 }
 
@@ -388,10 +386,7 @@ inline static void makeGroupFromCell(const SequenceRef &cellOut) {
     std::unordered_set<SequenceRef> seqs;
     std::vector<SequenceRef> cellInFront, cellEntrs;
     SequenceDetector(
-        [&](const SequenceRef &seq) {
-            return cellOut->PostDominates(*seq) &&
-                   !seq->Dominates(*cellOut, true);
-        },
+        [&](const SequenceRef &seq) { return cellOut->PostDominates(*seq); },
         std::mem_fn(&HierVertex::Preds), seqs, cellInFront, cellEntrs)
         .Visit(cellOut);
 

@@ -23,9 +23,7 @@ int main(int argc, char const *argv[]) {
     // Build hierarchical graph
     HierGraph hier(graph);
     RunPass<JoinSequencePass, MakeGroupPass>(hier);
-    auto sched = HierarchicalSchedule(hier);
-    // auto sched = ReversePostOrder(graph);
-    LOG(INFO) << EstimatePeak(sched, graph.inputs);
+    LOG(INFO) << EstimatePeak(HierarchicalSchedule(hier), graph.inputs);
     LOG(INFO) << EstimatePeak(ReversePostOrder(graph), graph.inputs);
 
     return 0;

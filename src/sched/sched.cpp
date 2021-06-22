@@ -237,7 +237,7 @@ static SchedResult scheduleGroupRpo(
     return {std::move(opSeq), std::move(states)};
 }
 
-static void updateResult(
+static PartialSchedResult &updateResult(
     const HierVertRef &vert, const std::vector<HierVertRef> &zeroIn,
     const PartialSchedResult &result, SchedResult &&vertResult,
     std::unordered_map<ValueRef, uint32_t> &&useCnt,
@@ -264,6 +264,8 @@ static void updateResult(
         newMemo[newZeroIn].Update(std::move(newResult));
     else
         newMemo.insert({newZeroIn, std::move(newResult)});
+
+    return newMemo.at(newZeroIn);
 }
 
 /// Use DP algorithm to schedule the group
@@ -361,7 +363,10 @@ public:
                     auto vertResult =
                         scheduleVertex(vert, useCnt, result.states);
                     updateResult(vert, zeroIn, result, std::move(vertResult),
-                                 std::move(useCnt), newMemo);
+                                 std::unordered_map(useCnt), newMemo);
+                        // .Print();
+                    // for (auto &[val, cnt] : useCnt)
+                        // LOG(INFO) << val->name << ' ' << cnt;
                 }
             }
             newMemo.swap(memo);
@@ -384,6 +389,7 @@ private:
                 GroupContext ctx(group, useCnt);
                 if (Contains(groupMemo, ctx)) {
                     // Use memoized result, also update use count
+                    LOG(INFO) << "found";
                     updateGroupUseCount(group, useCnt);
                     return groupMemo[ctx];
                 }
@@ -395,11 +401,13 @@ private:
                 // Use RPO schedule if peak is not lifted
                 if (rpoResult.states.Peak() + prevStates.Latest() <=
                     prevStates.Peak()) {
+                    LOG(INFO) << "rpo";
                     useCnt.swap(rpoUseCnt);
                     return rpoResult;
                 }
 
                 // Schedule group using DP and memoize the result
+                LOG(INFO) << "dp";
                 auto dpResult = scheduleGroupDp(group, useCnt);
                 useCnt.swap(rpoUseCnt);  // final use count is same
                 groupMemo.insert({ctx, dpResult});

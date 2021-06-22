@@ -85,6 +85,8 @@ struct Sequence : public HierVertex {
     explicit Sequence(const OpRef &op);
     std::string Label() const override;
 
+    bool Contains(const OpRef &op) const { return hos::Contains(ops, op); }
+
     static constexpr auto classKind = HierKind::SEQUENCE;
     HierKind Kind() const override { return classKind; }
 };
@@ -117,9 +119,14 @@ struct Group : public HierVertex {
         return seq->group.lock().get() == this;
     }
 
+    bool Contains(const OpRef &op) const {
+        return std::any_of(seqs.begin(), seqs.end(),
+                           [&](auto &seq) { return seq->Contains(op); });
+    }
+
+    template <class Vert>
     bool Contains(const HierVertRef &vert) const {
-        return Is<Sequence>(vert) ? this->Contains(Cast<Sequence>(vert))
-                                  : false;
+        return Is<Vert>(vert) && this->Contains(Cast<Vert>(vert));
     }
 
     static constexpr auto classKind = HierKind::GROUP;
