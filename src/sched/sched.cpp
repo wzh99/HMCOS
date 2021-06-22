@@ -308,8 +308,8 @@ static void updateGroupUseCount(
     // Reduce use count consumed by this group
     std::vector<ValueRef> killed;
     for (const auto &[val, num] : group->consumed) {
-        auto newCnt = --useCnt[val];
-        if (newCnt == 0) killed.push_back(val);
+        useCnt[val] -= num;
+        if (useCnt[val] == 0) killed.push_back(val);
     }
 
     // Erase killed values from use count map
@@ -364,9 +364,6 @@ public:
                         scheduleVertex(vert, useCnt, result.states);
                     updateResult(vert, zeroIn, result, std::move(vertResult),
                                  std::unordered_map(useCnt), newMemo);
-                        // .Print();
-                    // for (auto &[val, cnt] : useCnt)
-                        // LOG(INFO) << val->name << ' ' << cnt;
                 }
             }
             newMemo.swap(memo);
@@ -389,7 +386,6 @@ private:
                 GroupContext ctx(group, useCnt);
                 if (Contains(groupMemo, ctx)) {
                     // Use memoized result, also update use count
-                    LOG(INFO) << "found";
                     updateGroupUseCount(group, useCnt);
                     return groupMemo[ctx];
                 }
@@ -401,13 +397,11 @@ private:
                 // Use RPO schedule if peak is not lifted
                 if (rpoResult.states.Peak() + prevStates.Latest() <=
                     prevStates.Peak()) {
-                    LOG(INFO) << "rpo";
                     useCnt.swap(rpoUseCnt);
                     return rpoResult;
                 }
 
                 // Schedule group using DP and memoize the result
-                LOG(INFO) << "dp";
                 auto dpResult = scheduleGroupDp(group, useCnt);
                 useCnt.swap(rpoUseCnt);  // final use count is same
                 groupMemo.insert({ctx, dpResult});
