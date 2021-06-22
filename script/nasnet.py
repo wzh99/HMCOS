@@ -1,19 +1,17 @@
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
-import onnx
-from onnx import shape_inference
+from onnx import save_model, shape_inference
 from tensorflow import keras
 from tensorflow.keras import backend, Model
 from tensorflow.keras.layers import *
 from enum import IntEnum, auto
 from collections import namedtuple
 from tf2onnx import convert
-import tensorflow as tf
-import onnxoptimizer
+from tensorflow import TensorSpec
+from onnxoptimizer import optimize
 
 
 batch_size = 1
 num_stem_filters = 32
-num_stacked = 4
 
 backend.set_image_data_format('channels_first')
 
@@ -54,7 +52,7 @@ class Cifar100(Architecture):
         return 100
 
     def num_init_filters(self) -> int:
-        return 44  # 44 * 4 * 6 = 1056
+        return 32  # 32 * 4 * 6 = 768
 
     def stem_cell(self, x):
         x = Conv2D(num_stem_filters, 3, padding='same', use_bias=False)(x)
@@ -62,7 +60,7 @@ class Cifar100(Architecture):
         return x
 
     def cells(self) -> List[CellKind]:
-        normal = [CellKind.NORMAL] * num_stacked
+        normal = [CellKind.NORMAL] * 6
         reduction = [CellKind.REDUCTION]
         return normal + reduction + normal + reduction + normal
 
@@ -82,12 +80,12 @@ class ImageNet(Architecture):
 
     def stem_cell(self, x):
         x = Conv2D(num_stem_filters, 3, strides=2,
-                   use_bias=False)(x)
+                   padding='same', use_bias=False)(x)
         x = BatchNormalization(axis=1)(x)
         return x
 
     def cells(self) -> List[CellKind]:
-        normal = [CellKind.NORMAL] * num_stacked
+        normal = [CellKind.NORMAL] * 4
         reduction = [CellKind.REDUCTION]
         return reduction * 2 + normal + reduction + normal + reduction + normal
 
@@ -120,15 +118,14 @@ class NasNetBase:
 
         # Build cells
         assert self.genotype is not None
-        keras.applications.NASNetLarge
         prev = None
         cur_filters = arch.num_init_filters()
         for kind in arch.cells():
             if kind == CellKind.NORMAL:
                 nxt = self._create_normal(prev, cur, cur_filters)
             else:
-                nxt = self._create_reduction(prev, cur, cur_filters)
                 cur_filters *= 2
+                nxt = self._create_reduction(prev, cur, cur_filters)
             prev, cur = cur, nxt
 
         # Final layer
@@ -145,8 +142,8 @@ class NasNetBase:
                                  self.genotype.normal_concat, False)
 
     def _create_reduction(self, prev, cur, num_filters: int):
-        prev = _fit(prev, cur, num_filters)
         cur = _squeeze(cur, num_filters)
+        prev = _fit(prev, cur, num_filters)
         return self._create_cell(prev, cur, num_filters, self.genotype.reduction,
                                  self.genotype.reduction_concat, True)
 
@@ -184,8 +181,10 @@ def _sep_conv(x, num_filters: int, kernel_size: int, strides: int):
 
 def _dil_conv(x, num_filters: int, kernel_size: int, strides: int, dilation: int):
     x = ReLU()(x)
-    x = SeparableConv2D(num_filters, kernel_size, padding='same',
-                        dilation_rate=dilation, use_bias=False)(x)
+    # tf2onnx cannot handle dilated convolutions correctly, use undilated version instead.
+    # This compromise will NOT change its memory states, after all.
+    x = SeparableConv2D(num_filters, kernel_size,
+                        padding='same', use_bias=False)(x)
     x = BatchNormalization(axis=1)(x)
     return x
 
@@ -231,20 +230,44 @@ class NasNetA(NasNetBase):
                 [('max3x3', 1), ('sep5x5', 0)],
                 [('avg3x3', 1), ('sep5x5', 0)],
                 [('id', 3), ('avg3x3', 2)],
-                [('sep3x3', 2), ('max3x3', 1)]
+                [('sep3x3', 2), ('max3x3', 1)],
             ],
             reduction_concat=[3, 4, 5, 6],
+        )
+
+
+class Darts(NasNetBase):
+    def __init__(self) -> None:
+        super().__init__('darts')
+        self.genotype = Genotype(
+            normal=[
+                [('sep3x3', 0), ('sep3x3', 1)],
+                [('sep3x3', 0), ('sep3x3', 1)],
+                [('sep3x3', 1), ('id', 0)],
+                [('id', 0), ('dil3x3', 2)],
+            ],
+            normal_concat=[2, 3, 4, 5],
+            reduction=[
+                [('max3x3', 0), ('max3x3', 1)],
+                [('id', 2), ('max3x3', 1)],
+                [('max3x3', 0), ('id', 2)],
+                [('id', 2), ('max3x3', 1)],
+            ],
+            reduction_concat=[2, 3, 4, 5],
         )
 
 
 def create_model(arch_ty: Type[Architecture], net_ty: Type[NasNetBase]):
     arch = arch_ty()
     net = net_ty().build(arch)
-    input_spec = tf.TensorSpec((batch_size,) + arch.input_shape())
+    input_spec = TensorSpec((batch_size,) + arch.input_shape())
     model, _ = convert.from_keras(net, [input_spec], opset=10)
-    model = onnxoptimizer.optimize(model, passes=['fuse_bn_into_conv'])
+    model = optimize(model, passes=['fuse_bn_into_conv'])
     model = shape_inference.infer_shapes(model, check_type=True)
-    onnx.save_model(model, f'model/{net.name}.onnx')
+    save_model(model, f'model/{net.name}.onnx')
 
 
-create_model(Cifar100, NasNetA)
+# create_model(Cifar100, NasNetA)
+# create_model(ImageNet, NasNetA)
+# create_model(Cifar100, Darts)
+create_model(ImageNet, Darts)
