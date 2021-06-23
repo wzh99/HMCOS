@@ -1,7 +1,6 @@
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from onnx import save_model, shape_inference
-from tensorflow import keras
-from tensorflow.keras import backend, Model
+from tensorflow.keras import backend, Sequential, Model
 from tensorflow.keras.layers import *
 from enum import IntEnum, auto
 from collections import namedtuple
@@ -52,7 +51,7 @@ class Cifar100(Architecture):
         return 100
 
     def num_init_filters(self) -> int:
-        return 32  # 32 * 4 * 6 = 768
+        return 32
 
     def stem_cell(self, x):
         x = Conv2D(num_stem_filters, 3, padding='same', use_bias=False)(x)
@@ -76,7 +75,7 @@ class ImageNet(Architecture):
         return 1000
 
     def num_init_filters(self) -> int:
-        return 11  # 11 * 16 * 6 = 1056
+        return 12
 
     def stem_cell(self, x):
         x = Conv2D(num_stem_filters, 3, strides=2,
@@ -103,6 +102,7 @@ ops: Dict[str, Callable[[Any, int, int], Any]] = {
     'dil5x5': lambda x, f, s: _dil_conv(x, f, 5, s, 2),
     'avg3x3': lambda x, f, s: AvgPool2D(pool_size=3, strides=s, padding='same')(x),
     'max3x3': lambda x, f, s: MaxPool2D(pool_size=3, strides=s, padding='same')(x),
+    '1x77x1': lambda x, f, s: _1xnnx1(x, 7, f, s),
 }
 
 
@@ -150,7 +150,7 @@ class NasNetBase:
     def _create_cell(self, prev, cur, num_filters: int, block_genos: List[List[Tuple[str, int]]],
                      concat: List[int], reduction: bool):
         blocks = [prev, cur]
-        for i, block_geno in enumerate(block_genos):
+        for block_geno in block_genos:
             leftGeno, rightGeno = block_geno
             lhs = self._create_op(
                 num_filters, blocks, leftGeno[0], leftGeno[1], reduction)
@@ -162,6 +162,8 @@ class NasNetBase:
 
     def _create_op(self, num_filters: int, blocks: List[Any], name: str, arg: int,
                    reduction: bool):
+        if name == 'id' and reduction:
+            return AvgPool2D(padding='valid')(blocks[arg])
         op = ops[name]
         strides = 2 if reduction and arg < 2 else 1
         return op(blocks[arg], num_filters, strides)
@@ -185,6 +187,14 @@ def _dil_conv(x, num_filters: int, kernel_size: int, strides: int, dilation: int
     # This compromise will NOT change its memory states, after all.
     x = SeparableConv2D(num_filters, kernel_size,
                         padding='same', use_bias=False)(x)
+    x = BatchNormalization(axis=1)(x)
+    return x
+
+
+def _1xnnx1(x, n, num_filters: int, strides: int):
+    x = Conv2D(num_filters, (1, n), strides=strides, padding='same', use_bias=False)(x)
+    x = BatchNormalization(axis=1)(x)
+    x = Conv2D(num_filters, (n, 1), padding='same', use_bias=False)(x)
     x = BatchNormalization(axis=1)(x)
     return x
 
@@ -213,9 +223,9 @@ def _squeeze(x, num_filters: int):
     return x
 
 
-class NasNetA(NasNetBase):
+class NasNet(NasNetBase):
     def __init__(self) -> None:
-        super().__init__('nasnet_a')
+        super().__init__('nasnet')
         self.genotype = Genotype(
             normal=[
                 [('sep5x5', 1), ('sep3x3', 0)],
@@ -233,6 +243,46 @@ class NasNetA(NasNetBase):
                 [('sep3x3', 2), ('max3x3', 1)],
             ],
             reduction_concat=[3, 4, 5, 6],
+        )
+
+
+class AmoebaNet(NasNetBase):
+    def __init__(self) -> None:
+        super().__init__('amoebanet')
+        self.genotype = Genotype(
+            normal=[
+                [('avg3x3', 0), ('max3x3', 0)],
+                [('id', 0), ('avg3x3', 1)],
+                [('sep5x5', 2), ('sep3x3', 1)],
+                [('sep3x3', 2), ('id', 1)],
+                [('avg3x3', 4), ('sep3x3', 0)],
+            ],
+            normal_concat=[3, 5, 6],
+            reduction=[
+                [('avg3x3', 0), ('sep3x3', 1)],
+                [('max3x3', 1), ('max3x3', 0)],
+                [('max3x3', 0), ('sep7x7', 2)],
+                [('sep7x7', 0), ('avg3x3', 1)],
+                [('sep3x3', 3), ('1x77x1', 0)],
+            ],
+            reduction_concat=[4, 5, 6],
+        )
+
+
+class PNas(NasNetBase):
+    def __init__(self) -> None:
+        super().__init__('pnas')
+        blocks = [
+            [('sep5x5', 0), ('max3x3', 0)],
+            [('sep7x7', 1), ('max3x3', 1)],
+            [('sep5x5', 1), ('sep3x3', 1)],
+            [('sep3x3', 4), ('max3x3', 1)],
+            [('sep3x3', 0), ('id', 1)],
+        ]
+        concat = [2, 3, 4, 5, 6]
+        self.genotype = Genotype(
+            normal=blocks, normal_concat=concat,
+            reduction=blocks, reduction_concat=concat,
         )
 
 
@@ -267,7 +317,11 @@ def create_model(arch_ty: Type[Architecture], net_ty: Type[NasNetBase]):
     save_model(model, f'model/{net.name}.onnx')
 
 
-# create_model(Cifar100, NasNetA)
-# create_model(ImageNet, NasNetA)
+# create_model(Cifar100, NasNet)
+# create_model(ImageNet, NasNet)
+# create_model(Cifar100, AmoebaNet)
+# create_model(ImageNet, AmoebaNet)
+# create_model(Cifar100, PNas)
+# create_model(ImageNet, PNas)
 # create_model(Cifar100, Darts)
-create_model(ImageNet, Darts)
+# create_model(ImageNet, Darts)
