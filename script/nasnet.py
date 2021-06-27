@@ -1,6 +1,6 @@
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from onnx import save_model, shape_inference
-from tensorflow.keras import backend, Sequential, Model
+from tensorflow.keras import backend, Model
 from tensorflow.keras.layers import *
 from enum import IntEnum, auto
 from collections import namedtuple
@@ -100,6 +100,7 @@ ops: Dict[str, Callable[[Any, int, int], Any]] = {
     'sep7x7': lambda x, f, s: _sep_conv(x, f, 7, s),
     'dil3x3': lambda x, f, s: _dil_conv(x, f, 3, s, 2),
     'dil5x5': lambda x, f, s: _dil_conv(x, f, 5, s, 2),
+    'avg1x1': lambda x, f, s: AvgPool2D(pool_size=1, strides=s, padding='same')(x),
     'avg3x3': lambda x, f, s: AvgPool2D(pool_size=3, strides=s, padding='same')(x),
     'max3x3': lambda x, f, s: MaxPool2D(pool_size=3, strides=s, padding='same')(x),
     '1x77x1': lambda x, f, s: _1xnnx1(x, 7, f, s),
@@ -162,8 +163,6 @@ class NasNetBase:
 
     def _create_op(self, num_filters: int, blocks: List[Any], name: str, arg: int,
                    reduction: bool):
-        if name == 'id' and reduction:
-            return AvgPool2D(padding='valid')(blocks[arg])
         op = ops[name]
         strides = 2 if reduction and arg < 2 else 1
         return op(blocks[arg], num_filters, strides)
@@ -192,7 +191,8 @@ def _dil_conv(x, num_filters: int, kernel_size: int, strides: int, dilation: int
 
 
 def _1xnnx1(x, n, num_filters: int, strides: int):
-    x = Conv2D(num_filters, (1, n), strides=strides, padding='same', use_bias=False)(x)
+    x = Conv2D(num_filters, (1, n), strides=strides,
+               padding='same', use_bias=False)(x)
     x = BatchNormalization(axis=1)(x)
     x = Conv2D(num_filters, (n, 1), padding='same', use_bias=False)(x)
     x = BatchNormalization(axis=1)(x)
@@ -277,7 +277,7 @@ class PNas(NasNetBase):
             [('sep7x7', 1), ('max3x3', 1)],
             [('sep5x5', 1), ('sep3x3', 1)],
             [('sep3x3', 4), ('max3x3', 1)],
-            [('sep3x3', 0), ('id', 1)],
+            [('sep3x3', 0), ('avg1x1', 1)],
         ]
         concat = [2, 3, 4, 5, 6]
         self.genotype = Genotype(
