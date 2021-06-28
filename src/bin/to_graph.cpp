@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <fstream>
 #include <hos/sched/pass.hpp>
 #include <hos/util/op.hpp>
@@ -15,14 +16,16 @@ int main(int argc, char const *argv[]) {
     onnx::ModelProto model;
     model.ParseFromIstream(&ifs);
     ifs.close();
-    Graph graph(model, "nasnet_mobile");
+    auto name = std::filesystem::path(argv[1]).stem().string();
+    Graph graph(model, name);
+    graph.Visualize(argv[2]);
     model.Clear();
 
     // Build hierarchical graph
     HierGraph hier(graph);
     RunPass<JoinSequencePass, MakeGroupPass>(hier);
-    hier.VisualizeAll(argv[2], "nasnet-all");
-    hier.VisualizeTop(argv[2], "nasnet-top");
+    hier.VisualizeAll(argv[2], name + "-all");
+    hier.VisualizeTop(argv[2], name + "-top");
 
     return 0;
 }
