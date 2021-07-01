@@ -19,7 +19,9 @@ struct Lifetime {
 
     int32_t Length() const { return kill - gen; }
 
-    void Print() const { fmt::print("{}:{} {}\n", gen, kill, value->name); }
+    void Print() const {
+        LOG(INFO) << gen << ':' << kill << ' ' << value->name;
+    }
 };
 
 inline bool CmpByGenKill(const Lifetime &lhs, const Lifetime &rhs) {
@@ -36,34 +38,51 @@ inline bool CmpByLengthRev(const Lifetime &lhs, const Lifetime &rhs) {
     return CmpByLength(rhs, lhs);
 }
 
+class UsageIter;
+
 /// Lifetime statistics of all values in a computation graph
-class LifetimeStat {
-public:
-    /// Lifetime limit of values
-    int32_t begin, end;
+struct LifetimeStat {
+    /// Lifetime range of values
+    std::pair<int32_t, int32_t> range;
     /// Lifetimes of each value
-    std::vector<Lifetime> blocks;
+    std::vector<Lifetime> values;
 
-    /// Get memory histogram in [begin, end)
-    std::vector<uint64_t> Histogram() const;
-    /// Get peak memory usage
-    uint64_t Peak() const;
-
-private:
-    /// Count memory usage in [begin, end)
-    void count(std::function<void(uint64_t)> callback) const;
+    UsageIter begin() const;
+    UsageIter end() const;
 };
 
-static constexpr auto OVERLAP_FAILED = UINT32_MAX;
+class UsageIter {
+public:
+    UsageIter(int32_t t, const std::vector<Lifetime> &values)
+        : t(t), values(values) {}
+
+    uint64_t operator*();
+    void operator++() { t++; }
+
+    bool operator!=(const UsageIter &other) const { return this->t != other.t; }
+
+private:
+    int32_t t;
+    size_t idx = 0;
+    uint64_t sum = 0;
+    const std::vector<Lifetime> &values;
+    std::vector<const Lifetime *> alive;
+};
+
+inline UsageIter LifetimeStat::begin() const { return {range.first, values}; }
+inline UsageIter LifetimeStat::end() const { return {range.second, values}; }
 
 /// Whether the only output of this op can overlap one of the input
 uint32_t OverlapInput(const OpRef &op);
+static constexpr auto OVERLAP_FAILED = UINT32_MAX;
 
 /// Compute lifetime statistics of a complete op sequence of a graph.
-LifetimeStat ComputeLifetime(const std::vector<OpRef> &opSeq, const Graph &graph);
+LifetimeStat ComputeLifetime(const std::vector<OpRef> &opSeq,
+                             const Graph &graph);
 
 /// Estimate peak memory usage of an op sequence. This sequence does not need to
-/// contain all the ops in the graph. 
-uint64_t EstimatePeak(const std::vector<OpRef> &seq, const std::vector<InputRef> &inputs);
+/// contain all the ops in the graph.
+uint64_t EstimatePeak(const std::vector<OpRef> &seq,
+                      const std::vector<InputRef> &inputs);
 
 }  // namespace hos

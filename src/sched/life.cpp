@@ -4,6 +4,22 @@
 
 namespace hos {
 
+uint64_t UsageIter::operator*() {
+    while (idx < values.size() && values[idx].gen == t) {
+        alive.push_back(&values[idx]);
+        sum += values[idx].value->type.Size();
+        idx++;
+    }
+    RemoveIf(alive, [&](auto *block) {
+        if (block->kill == t) {
+            sum -= block->value->type.Size();
+            return true;
+        } else
+            return false;
+    });
+    return sum;
+}
+
 uint32_t OverlapInput(const OpRef &op) {
     // Cannot handle multiple output op
     if (op->outputs.size() > 1) return OVERLAP_FAILED;
@@ -24,42 +40,6 @@ uint32_t OverlapInput(const OpRef &op) {
     }
 
     return OVERLAP_FAILED;
-}
-
-std::vector<uint64_t> LifetimeStat::Histogram() const {
-    std::vector<uint64_t> usage;
-    count([&](auto total) { usage.push_back(total); });
-    return usage;
-}
-
-uint64_t hos::LifetimeStat::Peak() const {
-    uint64_t peak = 0;
-    count([&](auto total) { peak = std::max(peak, total); });
-    return peak;
-}
-
-void hos::LifetimeStat::count(std::function<void(uint64_t)> callback) const {
-    // Initialization
-    uint64_t total = 0;
-    std::vector<const Lifetime *> aliveBlocks;
-    size_t genIdx = 0;
-
-    // Iterate each time to find total memory usage
-    for (auto t = begin; t < end; t++) {
-        while (genIdx < blocks.size() && blocks[genIdx].gen == t) {
-            aliveBlocks.push_back(&blocks[genIdx]);
-            total += blocks[genIdx].value->type.Size();
-            genIdx++;
-        }
-        RemoveIf(aliveBlocks, [&](const Lifetime *block) {
-            if (block->kill == t) {
-                total -= block->value->type.Size();
-                return true;
-            } else
-                return false;
-        });
-        callback(total);
-    }
 }
 
 LifetimeStat ComputeLifetime(const std::vector<OpRef> &opSeq,
@@ -115,7 +95,7 @@ LifetimeStat ComputeLifetime(const std::vector<OpRef> &opSeq,
         valLife, [](auto &p) { return p.second; });
     std::sort(blocks.begin(), blocks.end(), CmpByGenKill);
 
-    return {Lifetime::TIME_INPUT, endTime, std::move(blocks)};
+    return {{Lifetime::TIME_INPUT, endTime}, std::move(blocks)};
 }
 
 uint64_t EstimatePeak(const std::vector<OpRef> &seq,
