@@ -126,24 +126,30 @@ void MemoryPlan::Print() const {
     for (auto &desc : descs) fmt::print("{}\n", desc.Format());
 }
 
+static const char *colors[]{
+    "aqua",        "darkturquoise",  "cadetblue",      "powderblue",
+    "deepskyblue", "skyblue",        "lightskyblue",   "steelblue",
+    "dodgerblue",  "lightsteelblue", "cornflowerblue", "royalblue",
+};
+
+static auto constexpr NUM_COLORS = sizeof(colors) / sizeof(colors[0]);
+
 void MemoryPlan::Visualize(const std::string &dir, const std::string &name,
                            const std::string &format) {
     RectPlot plot(name);
-    for (auto &desc : descs)
+    auto colorIdx = 0u;
+    for (auto &desc : descs) {
         plot.AddRect(float(desc.gen), float(desc.offset), float(desc.Length()),
-                     float(desc.size));
+                     float(desc.size), colors[colorIdx]);
+        colorIdx = (colorIdx + 1) % NUM_COLORS;
+    }
     plot.Render(dir, format);
-}
-
-inline static std::vector<MemoryDesc> ltToDesc(
-    const std::vector<Lifetime> &lifetimes) {
-    return Transform<std::vector<MemoryDesc> >(
-        lifetimes, [](auto &lt) { return MemoryDesc(lt); });
 }
 
 MemoryPlan BestFit(const LifetimeStat &stat) {
     // Initialize unplaced memory descriptors and container
-    auto unplaced = ltToDesc(stat.values);
+    auto unplaced = Transform<std::vector<MemoryDesc>>(
+        stat.values, [](auto &lt) { return MemoryDesc(lt); });
     Container cont(stat.range.first, stat.range.second);
 
     // Iterate until no blocks remain

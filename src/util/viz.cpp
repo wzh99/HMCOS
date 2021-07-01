@@ -14,16 +14,9 @@ static std::unordered_map<std::string, std::string> rcParams{
     {"font.sans-serif", FmtStr(DEFAULT_FONT)},
 };
 
-static const char *colors[] = {
-    "aqua",        "darkturquoise",  "cadetblue",      "powderblue",
-    "deepskyblue", "skyblue",        "lightskyblue",   "steelblue",
-    "dodgerblue",  "lightsteelblue", "cornflowerblue", "royalblue",
-};
-
-static constexpr auto NUM_COLORS = sizeof(colors) / sizeof(colors[0]);
-
-void RectPlot::AddRect(float coordX, float coordY, float width, float height) {
-    rects.push_back({{coordX, coordY}, width, height});
+void RectPlot::AddRect(float coordX, float coordY, float width, float height,
+                       const char *color) {
+    rects.push_back({{coordX, coordY}, width, height, color});
     xMin = std::min(xMin, coordX);
     yMin = std::min(yMin, coordY);
     xMax = std::max(xMax, coordX + width);
@@ -54,15 +47,12 @@ void hos::RectPlot::Render(const std::string &dir,
     writer.WriteLn(fmt::format("plt.xlim({}, {})", xMin, xMax));
     writer.WriteLn(fmt::format("plt.ylim({}, {})", yMin, yMax));
     // Plot rectangles
-    auto colorIdx = 0u;
-    for (auto &rect : rects) {
+    for (auto &rect : rects)
         writer.WriteLn(
             fmt::format("ax.add_patch(plt.Rectangle(({}, {}), {}, {}, "
                         "facecolor={}))",
                         rect.coord.first, rect.coord.second, rect.width,
-                        rect.height, FmtStr(colors[colorIdx])));
-        colorIdx = (colorIdx + 1) % NUM_COLORS;
-    }
+                        rect.height, FmtStr(rect.color)));
     // Save figure
     auto figPath = path(dir) / path(fmt::format("{}.{}", name, format));
     writer.WriteLn(fmt::format("plt.savefig({})", FmtStr(figPath.string())));

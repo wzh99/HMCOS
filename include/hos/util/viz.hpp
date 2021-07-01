@@ -4,8 +4,8 @@
 
 #include <filesystem>
 #include <fstream>
-#include <hos/util/writer.hpp>
 #include <hos/util/fmt.hpp>
+#include <hos/util/writer.hpp>
 #include <unordered_map>
 
 namespace hos {
@@ -204,14 +204,19 @@ struct Rect {
     float width;
     /// Height of the rectangle (Y-axis)
     float height;
+    /// Color
+    const char *color;
 };
 
 /// Plot rectangles
 class RectPlot {
 public:
     RectPlot(const std::string &name) : name(name) {}
-    void AddRect(float coordX, float coordY, float width, float height);
+    void AddRect(float coordX, float coordY, float width, float height,
+                 const char *color);
     void Render(const std::string &dir, const std::string &format) const;
+
+    void SetYMax(float newYMax) { yMax = newYMax; }
 
 private:
     std::string name;
