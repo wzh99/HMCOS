@@ -49,6 +49,10 @@ struct LifetimeStat {
 
     UsageIter begin() const;
     UsageIter end() const;
+
+    void Plot(const std::string &dir, const std::string &name,
+              std::optional<uint64_t> yMax = std::nullopt,
+              const std::string &format = "pdf") const;
 };
 
 class UsageIter {
@@ -56,7 +60,7 @@ public:
     UsageIter(int32_t t, const std::vector<Lifetime> &values)
         : t(t), values(values) {}
 
-    uint64_t operator*();
+    std::pair<int32_t, uint64_t> operator*();
     void operator++() { t++; }
 
     bool operator!=(const UsageIter &other) const { return this->t != other.t; }

@@ -1,10 +1,20 @@
-#include <deque>
 #include <hos/sched/life.hpp>
 #include <hos/util/op.hpp>
+#include <hos/util/viz.hpp>
 
 namespace hos {
 
-uint64_t UsageIter::operator*() {
+void LifetimeStat::Plot(const std::string &dir, const std::string &name,
+                        std::optional<uint64_t> yMax,
+                        const std::string &format) const {
+    RectPlot plot(name);
+    for (auto [t, m] : *this)
+        plot.AddRect(float(t), 0.f, 1.f, float(m), "royalblue");
+    if (yMax) plot.SetYMax(*yMax);
+    plot.Render(dir, format);
+}
+
+std::pair<int32_t, uint64_t> UsageIter::operator*() {
     while (idx < values.size() && values[idx].gen == t) {
         alive.push_back(&values[idx]);
         sum += values[idx].value->type.Size();
@@ -17,7 +27,7 @@ uint64_t UsageIter::operator*() {
         } else
             return false;
     });
-    return sum;
+    return {t, sum};
 }
 
 uint32_t OverlapInput(const OpRef &op) {

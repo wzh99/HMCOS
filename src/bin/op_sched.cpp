@@ -1,6 +1,6 @@
+#include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <chrono>
 #include <hos/sched/life.hpp>
 #include <hos/sched/pass.hpp>
 #include <hos/sched/sched.hpp>
@@ -30,7 +30,8 @@ int main(int argc, char const *argv[]) {
     auto sched = HierarchicalSchedule(hier);
     LOG(INFO) << duration_cast<milliseconds>(clock.now() - begin).count();
     LOG(INFO) << EstimatePeak(sched, graph.inputs) / 1024;
-    LOG(INFO) << EstimatePeak(ReversePostOrder(graph), graph.inputs) / 1024;
+    sched = ReversePostOrder(graph);
+    LOG(INFO) << EstimatePeak(sched, graph.inputs) / 1024;
 
     return 0;
 }
