@@ -363,7 +363,7 @@ public:
                     auto vertResult =
                         scheduleVertex(vert, useCnt, result.states);
                     updateResult(vert, zeroIn, result, std::move(vertResult),
-                                 std::unordered_map(useCnt), newMemo);
+                                 std::move(useCnt), newMemo);
                 }
             }
             newMemo.swap(memo);

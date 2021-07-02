@@ -7,7 +7,7 @@ static const auto PYTHON_PREAMBLE =
     "import matplotlib as mpl\n"
     "import matplotlib.pyplot as plt\n\n";
 
-static std::unordered_map<std::string, std::string> rcParams{
+static std::vector<std::pair<std::string, std::string>> rcParams{
     {"figure.figsize", "(8, 6)"},
     {"figure.dpi", "150"},
     {"font.sans-serif", FmtStr(DEFAULT_FONT)},
@@ -28,8 +28,7 @@ void RectPlot::AddRect(float coordX, float coordY, float width, float height,
 #define PYTHON_CMD "python3"
 #endif
 
-void hos::RectPlot::Render(const std::string &dir,
-                           const std::string &format) const {
+void RectPlot::Render(const std::string &dir, const std::string &format) const {
     // Create Python file
     using namespace std::filesystem;
     auto pyPath = (path(dir) / path(name + ".py")).string();
