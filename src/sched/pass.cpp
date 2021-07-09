@@ -398,6 +398,11 @@ inline static void makeGroupFromCell(const SequenceRef &cellOut) {
         std::mem_fn(&HierVertex::Succs), intruded, intrOutFront, intrExits)
         .Visit(cellOut);
 
+#ifdef DISABLE_CELL_INTRUSION
+    // Create group from cell
+    createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
+    return;
+#else
     // Directly create group if intrusion is not possible
     if (Contains(intrOutFront, cellOut)) {
         createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
@@ -438,6 +443,7 @@ inline static void makeGroupFromCell(const SequenceRef &cellOut) {
     // Create cell group and intruded group
     createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
     createGroup(intruded, intrInFront, intrOutFront, intrEntrs, intrExits);
+#endif
 }
 
 void MakeGroupPass::Run(HierGraph &hier) {
