@@ -161,7 +161,7 @@ MemoryPlan BestFit(const LifetimeStat &stat) {
         // Find best fit for this step
         auto bestFitPos = MinPosWithConstr(
             unplaced, [&](auto &desc) { return step.CanPlace(desc); },
-            CmpByLengthRev);
+            CmpByLengthInv);
 
         // Lift this step if no block can be placed
         if (!bestFitPos.has_value()) {
@@ -172,7 +172,7 @@ MemoryPlan BestFit(const LifetimeStat &stat) {
         // Place best fit block at the step
         auto block = *bestFitPos.value();
         block.offset = cont.Place(block.gen, block.Length(), block.size);
-        placed.push_back(block);
+        placed.push_back(std::move(block));
         unplaced.erase(bestFitPos.value());
     }
 
