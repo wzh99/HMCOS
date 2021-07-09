@@ -34,7 +34,7 @@ inline bool CmpByLength(const Lifetime &lhs, const Lifetime &rhs) {
     return ll != rl ? ll < rl : CmpByGenKill(lhs, rhs);
 }
 
-inline bool CmpByLengthRev(const Lifetime &lhs, const Lifetime &rhs) {
+inline bool CmpByLengthInv(const Lifetime &lhs, const Lifetime &rhs) {
     return CmpByLength(rhs, lhs);
 }
 

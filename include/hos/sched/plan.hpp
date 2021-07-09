@@ -25,7 +25,7 @@ struct MemoryDesc : public Lifetime {
     }
 };
 
-inline bool CmpBySizeRev(const MemoryDesc &lhs, const MemoryDesc &rhs) {
+inline bool CmpBySizeInv(const MemoryDesc &lhs, const MemoryDesc &rhs) {
     return lhs.size > rhs.size;
 }
 
