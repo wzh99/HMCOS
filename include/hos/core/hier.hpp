@@ -148,19 +148,19 @@ struct HierGraph {
 
     /// Plot all levels of structures in this hierarchical graph
     void PlotAll(const std::string &dir, const std::string &name,
-                      const std::string &format = "pdf");
+                 const std::string &format = "pdf");
 
     /// Plot top level vertices in this hierarchical graph
     void PlotTop(const std::string &dir, const std::string &name,
-                      const std::string &format = "pdf");
+                 const std::string &format = "pdf");
 
     /// Plot dominator tree of this hierarchical graph
     void PlotDom(const std::string &dir, const std::string &name,
-                      const std::string &format = "pdf");
+                 const std::string &format = "pdf");
 
     /// Plot post-dominator tree of this hierarchical graph
     void PlotPostDom(const std::string &dir, const std::string &name,
-                          const std::string &format = "pdf");
+                     const std::string &format = "pdf");
 };
 
 class RpoHierRange : public VertRange<HierVertex, RpoIter<HierVertex>> {

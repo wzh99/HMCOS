@@ -1,8 +1,32 @@
 #include <hos/sched/life.hpp>
 #include <hos/sched/mem.hpp>
 #include <hos/sched/sched.hpp>
+#include <hos/util/viz.hpp>
 
 namespace hos {
+
+void PlotSchedule(const std::vector<hos::OpRef> &sched, const Graph &graph,
+                  const std::string &dir, const std::string &name,
+                  const std::string &format) {
+    LOG_ASSERT(sched.size() == graph.ops.size());
+
+    // Define DOT graph
+    DotCreator<VertexRef> creator(name);
+
+    // Add vertices
+    for (auto &in : graph.inputs) creator.Node(in, in->value->name);
+    for (auto [i, op] : EnumRange(sched))
+        creator.Node(op, fmt::format("{}:{}", i, op->type));
+    for (auto &out : graph.outputs) creator.Node(out, out->value->name);
+
+    // Add edges
+    for (auto &op : graph.ops)
+        for (auto &pred : op->preds) creator.Edge(pred.lock(), op);
+    for (auto &out : graph.outputs) creator.Edge(out->Def(), out);
+
+    // Compile
+    creator.Render(dir, format);
+}
 
 std::vector<OpRef> ReversePostOrder(const Graph &graph) {
     std::vector<OpRef> seq;

@@ -4,6 +4,10 @@
 
 namespace hos {
 
+void PlotSchedule(const std::vector<OpRef> &sched, const Graph &graph,
+                  const std::string &dir, const std::string &name,
+                  const std::string &format = "pdf");
+
 /// Produce reverse post-order sequence of a computation graph
 std::vector<OpRef> ReversePostOrder(const Graph &graph);
 
