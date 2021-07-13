@@ -162,6 +162,38 @@ private:
     RhsCont &rhs;
 };
 
+template <class Iter>
+class EnumIter {
+public:
+    EnumIter(Iter iter, size_t index) : iter(iter), index(index) {}
+
+    void operator++() { ++iter, ++index; }
+
+    auto operator*() const {
+        return std::pair<size_t, decltype(*iter)>(index, *iter);
+    }
+
+    bool operator!=(const EnumIter &other) const {
+        return this->iter != other.iter;
+    }
+
+private:
+    Iter iter;
+    size_t index;
+};
+
+template <class Cont>
+class EnumRange {
+public:
+    EnumRange(Cont &cont) : cont(cont) {}
+
+    auto begin() { return EnumIter(cont.begin(), 0); }
+    auto end() { return EnumIter(cont.end(), 0); }
+
+private:
+    Cont &cont;
+};
+
 /// Hash
 
 template <class Elem>

@@ -15,11 +15,9 @@ static uint64_t computeArenaSize(const LifetimeStat &stat) {
     std::vector<tflite::ArenaAllocWithUsageInterval> allocs(stat.values.size());
     TfLiteContext ctx;
     tflite::SimpleMemoryArena arena(64);
-    for (auto i = 0u; i < stat.values.size(); i++) {
-        auto &val = stat.values[i];
+    for (auto [i, val] : EnumRange(stat.values)) 
         arena.Allocate(&ctx, 64, val.value->type.Size(), i, val.gen,
                        val.kill - 1, &allocs[i]);
-    }
     return arena.RequiredBufferSize();
 }
 
