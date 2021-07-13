@@ -29,8 +29,5 @@ target_link_libraries(hos ${HOS_COMMON_LIBS})
 add_executable(model_info src/bin/model_info.cpp)
 target_link_libraries(model_info hos)
 
-add_executable(to_graph src/bin/to_graph.cpp)
-target_link_libraries(to_graph hos)
-
 add_executable(op_sched src/bin/op_sched.cpp)
 target_link_libraries(op_sched hos)

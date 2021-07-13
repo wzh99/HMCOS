@@ -146,20 +146,20 @@ struct HierGraph {
 
     explicit HierGraph(const Graph &graph);
 
-    /// Visualize all levels of structures in this hierarchical graph
-    void VisualizeAll(const std::string &dir, const std::string &name,
+    /// Plot all levels of structures in this hierarchical graph
+    void PlotAll(const std::string &dir, const std::string &name,
                       const std::string &format = "pdf");
 
-    /// Visualize top level vertices in this hierarchical graph
-    void VisualizeTop(const std::string &dir, const std::string &name,
+    /// Plot top level vertices in this hierarchical graph
+    void PlotTop(const std::string &dir, const std::string &name,
                       const std::string &format = "pdf");
 
-    /// Visualize dominator tree of this hierarchical graph
-    void VisualizeDom(const std::string &dir, const std::string &name,
+    /// Plot dominator tree of this hierarchical graph
+    void PlotDom(const std::string &dir, const std::string &name,
                       const std::string &format = "pdf");
 
-    /// Visualize post-dominator tree of this hierarchical graph
-    void VisualizePostDom(const std::string &dir, const std::string &name,
+    /// Plot post-dominator tree of this hierarchical graph
+    void PlotPostDom(const std::string &dir, const std::string &name,
                           const std::string &format = "pdf");
 };
 

@@ -18,14 +18,14 @@ int main(int argc, char const *argv[]) {
     ifs.close();
     auto name = std::filesystem::path(argv[1]).stem().string();
     Graph graph(model, name);
-    graph.Visualize(argv[2]);
+    graph.Plot(argv[2]);
     model.Clear();
 
     // Build hierarchical graph
     HierGraph hier(graph);
     RunPass<JoinSequencePass, MakeGroupPass>(hier);
-    hier.VisualizeAll(argv[2], name + "-all");
-    hier.VisualizeTop(argv[2], name + "-top");
+    hier.PlotAll(argv[2], name + "-all");
+    hier.PlotTop(argv[2], name + "-top");
 
     return 0;
 }

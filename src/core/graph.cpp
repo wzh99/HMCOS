@@ -234,7 +234,7 @@ Graph Graph::Subgraph(std::function<bool(const OpRef &)> isOutput,
     return sub;
 }
 
-void Graph::Visualize(const std::string &dir, const std::string &format) const {
+void Graph::Plot(const std::string &dir, const std::string &format) const {
     // Define DOT graph
     DotCreator<VertexRef> creator(name);
 

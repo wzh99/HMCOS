@@ -94,10 +94,10 @@ struct Graph {
     Graph Subgraph(std::function<bool(const OpRef &)> isOutput,
                    const std::string &subName) const;
 
-    /// Visualize vertices and edges in the graph.
+    /// Plot vertices and edges in the graph.
     /// Vertices are connected according to their def-use relations. Values will
     /// not appear in the visualization.
-    void Visualize(const std::string &dir,
+    void Plot(const std::string &dir,
                    const std::string &format = "pdf") const;
 
     /// Connect vertices according to their def-use relations

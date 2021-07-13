@@ -134,7 +134,7 @@ static const char *colors[]{
 
 static auto constexpr NUM_COLORS = sizeof(colors) / sizeof(colors[0]);
 
-void MemoryPlan::Visualize(const std::string &dir, const std::string &name,
+void MemoryPlan::Plot(const std::string &dir, const std::string &name,
                            const std::string &format) {
     RectPlot plot(name);
     auto colorIdx = 0u;

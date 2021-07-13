@@ -122,8 +122,8 @@ struct MemoryPlan {
     MemoryPlan(uint64_t peak, std::vector<MemoryDesc> &&descs);
     /// Print memory plan
     void Print() const;
-    /// Visualize memory plan with Matplotlib
-    void Visualize(const std::string &dir, const std::string &name,
+    /// Plot memory plan with Matplotlib
+    void Plot(const std::string &dir, const std::string &name,
                    const std::string &format = "pdf");
 };
 

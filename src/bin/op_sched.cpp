@@ -39,12 +39,11 @@ int main(int argc, char const *argv[]) {
 
     // Build hierarchical graph
     HierGraph hier(graph);
-    system_clock clock;
-    auto begin = clock.now();
-    RunPass<JoinSequencePass, MakeGroupPass>(hier);
-    LOG(INFO) << duration_cast<milliseconds>(clock.now() - begin).count();
+    JoinSequencePass().Run(hier);
+    MakeGroupPass(true).Run(hier);
+
+    // Schedule hierarchical graph
     auto sched = HierarchicalSchedule(hier);
-    LOG(INFO) << duration_cast<milliseconds>(clock.now() - begin).count();
     LOG(INFO) << EstimatePeak(sched, graph.inputs) / 1024;
     LOG(INFO) << computeArenaSize(ComputeLifetime(sched, graph)) / 1024;
     sched = ReversePostOrder(graph);

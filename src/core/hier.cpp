@@ -58,7 +58,7 @@ public:
 
     HierVizAllVisitor(DotCreator<VertexRef> &creator) : creator(creator) {}
 
-    void Visualize(const HierGraph &hier) {
+    void Plot(const HierGraph &hier) {
         // Add nodes
         for (auto &out : hier.outputs) Visit(out, creator.Top());
 
@@ -100,10 +100,10 @@ private:
     DotCreator<VertexRef> &creator;
 };
 
-void HierGraph::VisualizeAll(const std::string &dir, const std::string &name,
+void HierGraph::PlotAll(const std::string &dir, const std::string &name,
                              const std::string &format) {
     DotCreator<VertexRef> creator(name);
-    HierVizAllVisitor(creator).Visualize(*this);
+    HierVizAllVisitor(creator).Plot(*this);
     creator.Render(dir, format);
 }
 
@@ -111,7 +111,7 @@ class HierVizTopVisitor : public HierVertVisitor<Unit> {
 public:
     HierVizTopVisitor(DotCreator<HierVertRef> &creator) : creator(creator) {}
 
-    void Visualize(const HierGraph &hier) {
+    void Plot(const HierGraph &hier) {
         for (auto &in : hier.inputs) Visit(in);
     }
 
@@ -135,10 +135,10 @@ private:
     DotCreator<HierVertRef> &creator;
 };
 
-void HierGraph::VisualizeTop(const std::string &dir, const std::string &name,
+void HierGraph::PlotTop(const std::string &dir, const std::string &name,
                              const std::string &format) {
     DotCreator<HierVertRef> creator(name);
-    HierVizTopVisitor(creator).Visualize(*this);
+    HierVizTopVisitor(creator).Plot(*this);
     creator.Render(dir, format);
 }
 
@@ -166,7 +166,7 @@ private:
     DotCreator<HierDomNodeRef> &creator;
 };
 
-void HierGraph::VisualizeDom(const std::string &dir, const std::string &name,
+void HierGraph::PlotDom(const std::string &dir, const std::string &name,
                              const std::string &format) {
     if (inputs.empty()) {
         LOG(ERROR) << "Input list of the hierarchical graph is empty.";
@@ -181,7 +181,7 @@ void HierGraph::VisualizeDom(const std::string &dir, const std::string &name,
     creator.Render(dir, format);
 }
 
-void HierGraph::VisualizePostDom(const std::string &dir,
+void HierGraph::PlotPostDom(const std::string &dir,
                                  const std::string &name,
                                  const std::string &format) {
     if (outputs.empty()) {
