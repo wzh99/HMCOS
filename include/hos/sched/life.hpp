@@ -38,7 +38,7 @@ inline bool CmpByLengthInv(const Lifetime &lhs, const Lifetime &rhs) {
     return CmpByLength(rhs, lhs);
 }
 
-class UsageIter;
+class SizeRange;
 
 /// Lifetime statistics of all values in a computation graph
 struct LifetimeStat {
@@ -47,23 +47,22 @@ struct LifetimeStat {
     /// Lifetimes of each value
     std::vector<Lifetime> values;
 
-    UsageIter begin() const;
-    UsageIter end() const;
+    SizeRange IterSize() const;
 
     void Plot(const std::string &dir, const std::string &name,
               std::optional<uint64_t> yMax = std::nullopt,
               const std::string &format = "pdf") const;
 };
 
-class UsageIter {
+class SizeIter {
 public:
-    UsageIter(int32_t t, const std::vector<Lifetime> &values)
+    SizeIter(int32_t t, const std::vector<Lifetime> &values)
         : t(t), values(values) {}
 
     std::pair<int32_t, uint64_t> operator*();
     void operator++() { t++; }
 
-    bool operator!=(const UsageIter &other) const { return this->t != other.t; }
+    bool operator!=(const SizeIter &other) const { return this->t != other.t; }
 
 private:
     int32_t t;
@@ -73,8 +72,18 @@ private:
     std::vector<const Lifetime *> alive;
 };
 
-inline UsageIter LifetimeStat::begin() const { return {range.first, values}; }
-inline UsageIter LifetimeStat::end() const { return {range.second, values}; }
+class SizeRange {
+public:
+    SizeRange(const LifetimeStat &stat) : stat(stat) {}
+
+    SizeIter begin() const { return {stat.range.first, stat.values}; }
+    SizeIter end() const { return {stat.range.second, stat.values}; }
+
+private:
+    const LifetimeStat &stat;
+};
+
+inline SizeRange LifetimeStat::IterSize() const { return {*this}; }
 
 /// Whether the only output of this op can overlap one of the input
 uint32_t OverlapInput(const OpRef &op);

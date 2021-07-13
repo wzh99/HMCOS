@@ -8,13 +8,13 @@ void LifetimeStat::Plot(const std::string &dir, const std::string &name,
                         std::optional<uint64_t> yMax,
                         const std::string &format) const {
     RectPlot plot(name);
-    for (auto [t, m] : *this)
+    for (auto [t, m] : IterSize())
         plot.AddRect(float(t), 0.f, 1.f, float(m), "royalblue");
     if (yMax) plot.SetYMax(*yMax);
     plot.Render(dir, format);
 }
 
-std::pair<int32_t, uint64_t> UsageIter::operator*() {
+std::pair<int32_t, uint64_t> SizeIter::operator*() {
     while (idx < values.size() && values[idx].gen == t) {
         alive.push_back(&values[idx]);
         sum += values[idx].value->type.Size();
