@@ -15,6 +15,8 @@ public:
 
 class MakeGroupPass : public HierGraphPass {
 public:
+    explicit MakeGroupPass(bool intrude) : intrude(intrude) {}
+    
     void Run(HierGraph &graph) override;
 
 private:
@@ -22,6 +24,8 @@ private:
     static bool isCellOut(const SequenceRef &seq) {
         return seq->ops.front()->type == "Concat";
     }
+
+    bool intrude;
 };
 
 }  // namespace hos

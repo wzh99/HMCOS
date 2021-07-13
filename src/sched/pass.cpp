@@ -381,7 +381,7 @@ private:
     uint64_t minSize;
 };
 
-inline static void makeGroupFromCell(const SequenceRef &cellOut) {
+inline static void makeGroupFromCell(const SequenceRef &cellOut, bool intrude) {
     // Detect input frontier of the group
     std::unordered_set<SequenceRef> seqs;
     std::vector<SequenceRef> cellInFront, cellEntrs;
@@ -398,13 +398,8 @@ inline static void makeGroupFromCell(const SequenceRef &cellOut) {
         std::mem_fn(&HierVertex::Succs), intruded, intrOutFront, intrExits)
         .Visit(cellOut);
 
-#ifdef DISABLE_CELL_INTRUSION
-    // Create group from cell
-    createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
-    return;
-#else
     // Directly create group if intrusion is not possible
-    if (Contains(intrOutFront, cellOut)) {
+    if (!intrude || Contains(intrOutFront, cellOut)) {
         createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
         return;
     }
@@ -443,7 +438,6 @@ inline static void makeGroupFromCell(const SequenceRef &cellOut) {
     // Create cell group and intruded group
     createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
     createGroup(intruded, intrInFront, intrOutFront, intrEntrs, intrExits);
-#endif
 }
 
 void MakeGroupPass::Run(HierGraph &hier) {
@@ -482,7 +476,7 @@ void MakeGroupPass::Run(HierGraph &hier) {
     // Build group from cells
     for (auto &out : cellOuts) {
         if (out->group.lock()) continue;
-        makeGroupFromCell(out);
+        makeGroupFromCell(out, intrude);
     }
 }
 
