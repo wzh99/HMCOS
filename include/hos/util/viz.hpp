@@ -208,20 +208,47 @@ struct Rect {
     const char *color;
 };
 
-/// Plot rectangles
-class RectPlot {
+class PythonPlot {
 public:
-    RectPlot(const std::string &name) : name(name) {}
+    PythonPlot(const std::string &name) : name(name) {}
+    void Render(const std::string &dir, const std::string &format) const;
+
+protected:
+    virtual void writeMain(CodeWriter &writer) const = 0;
+
+private:
+    std::string name;
+};
+
+/// Plot rectangles
+class RectPlot : public PythonPlot {
+public:
+    RectPlot(const std::string &name) : PythonPlot(name) {}
+
     void AddRect(float coordX, float coordY, float width, float height,
                  const char *color);
-    void Render(const std::string &dir, const std::string &format) const;
 
     void SetYMax(float newYMax) { yMax = newYMax; }
 
 private:
-    std::string name;
+    void writeMain(CodeWriter &writer) const override;
+
     std::vector<Rect> rects;
     float xMin = 0.f, xMax = 0.f, yMin = 0.f, yMax = 0.f;
+};
+
+class HistoPlot : public PythonPlot {
+public:
+    HistoPlot(const std::string &name) : PythonPlot(name) {}
+
+    void Append(float x) { data.push_back(x); }
+
+private:
+    void writeMain(CodeWriter &writer) const override;
+
+private:
+    std::string name;
+    std::vector<float> data;
 };
 
 }  // namespace hos
