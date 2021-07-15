@@ -28,6 +28,37 @@ void PlotSchedule(const std::vector<hos::OpRef> &sched, const Graph &graph,
     creator.Render(dir, format);
 }
 
+static std::unordered_map<OpRef, uint32_t> initPredCount(const Graph &graph) {
+    std::unordered_map<OpRef, uint32_t> predCnt;
+    for (auto &op : graph.ops) predCnt.insert({op, uint32_t(op->preds.size())});
+    for (auto &input : graph.inputs)
+        for (auto &succ : input->succs) predCnt[As<Op>(succ)]--;
+    return predCnt;
+}
+
+static void extractZeroPredOp(std::unordered_map<OpRef, uint32_t> &predCnt,
+                              std::vector<OpRef> &zeroPred) {
+    for (auto &[op, cnt] : predCnt)
+        if (cnt == 0) zeroPred.push_back(op);
+    for (auto &op : zeroPred) predCnt.erase(op);
+}
+
+std::vector<OpRef> RandomSample(const Graph &graph, std::mt19937 &rng) {
+    std::vector<OpRef> sched;
+    auto predCnt = initPredCount(graph);
+    std::vector<OpRef> zeroPred;
+    extractZeroPredOp(predCnt, zeroPred);
+    while (!zeroPred.empty()) {
+        auto op = zeroPred[rng() % zeroPred.size()];
+        sched.push_back(op);
+        Remove(zeroPred, op);
+        for (auto &succ : op->succs)
+            if (Is<Op>(succ)) predCnt[As<Op>(succ)]--;
+        extractZeroPredOp(predCnt, zeroPred);
+    }
+    return sched;
+}
+
 std::vector<OpRef> ReversePostOrder(const Graph &graph) {
     std::vector<OpRef> seq;
     for (auto v : RpoVertRange(graph))
@@ -44,14 +75,7 @@ public:
         : graph(graph), metric(metric), callback(callback) {}
 
     void Search() {
-        // Initialize predecessor count
-        std::unordered_map<OpRef, uint32_t> predCnt;
-        for (auto &op : graph.ops)
-            predCnt.insert({op, uint32_t(op->preds.size())});
-        for (auto &input : graph.inputs)
-            for (auto &succ : input->succs) predCnt[As<Op>(succ)]--;
-
-        // Begin searching
+        auto predCnt = initPredCount(graph);
         best = UINT64_MAX;
         std::vector<OpRef> seq;
         search(seq, predCnt);
@@ -179,11 +203,6 @@ inline static void extractZeroIn(
     for (auto &[vert, cnt] : predCnt)
         if (cnt == 0) Insert(zeroIn, vert);
     for (auto &vert : zeroIn) predCnt.erase(vert);
-}
-
-inline static void printUseCount(
-    const std::unordered_map<ValueRef, uint32_t> &useCnt) {
-    for (auto &[val, cnt] : useCnt) LOG(INFO) << val->name << " " << cnt;
 }
 
 /// A sequence has only one possible schedule. This function also computes
