@@ -8,7 +8,7 @@ void LifetimeStat::Plot(const std::string &dir, const std::string &name,
                         std::optional<uint64_t> yMax,
                         const std::string &format) const {
     RectPlot plot(name);
-    for (auto [t, m] : IterSize())
+    for (auto [t, m] : SizeRange())
         plot.AddRect(float(t), 0.f, 1.f, float(m), "royalblue");
     if (yMax) plot.SetYMax(*yMax);
     plot.Render(dir, format);

@@ -15,6 +15,10 @@ enum class HierKind {
 struct HierVertex : public VertexBase<HierVertex> {
     /// Node of this vertex in dominator and post-dominator tree
     std::shared_ptr<DomNode<HierVertex>> dom, postDom;
+    /// Keep record of predecessors and successors when this vertex is not
+    /// grouped
+    std::vector<std::weak_ptr<HierVertex>> prevPreds;
+    std::vector<std::shared_ptr<HierVertex>> prevSuccs;
 
     bool Dominates(const HierVertex &other, bool strict = false) const {
         return this->dom->Dominates(*other.dom, strict);
@@ -22,6 +26,11 @@ struct HierVertex : public VertexBase<HierVertex> {
 
     bool PostDominates(const HierVertex &other, bool strict = false) const {
         return this->postDom->Dominates(*other.postDom, strict);
+    }
+
+    void BackupEdges() {
+        prevPreds = preds;
+        prevSuccs = succs;
     }
 
     /// Label of this vertex in visualization
@@ -82,8 +91,10 @@ struct Sequence : public HierVertex {
     /// Group where this sequence resides in
     std::weak_ptr<Group> group;
 
-    explicit Sequence(const OpRef &op);
+    Sequence(const OpRef &op);
+
     std::string Label() const override;
+    void Dump() const;
 
     bool Contains(const OpRef &op) const { return hos::Contains(ops, op); }
 
@@ -114,6 +125,7 @@ struct Group : public HierVertex {
     std::vector<std::pair<ValueRef, uint32_t>> consumed, produced;
 
     std::string Label() const override;
+    void Dump() const;
 
     bool Contains(const SequenceRef &seq) const {
         return seq->group.lock().get() == this;
@@ -143,6 +155,8 @@ struct HierGraph {
     /// by edges and can be found through traversal of the graph.
     std::vector<HierInputRef> inputs;
     std::vector<HierOutputRef> outputs;
+    /// Maps op to sequence that contains it
+    std::unordered_map<OpRef, SequenceRef> opToSeq;
 
     explicit HierGraph(const Graph &graph);
 

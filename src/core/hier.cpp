@@ -14,12 +14,33 @@ std::string Sequence::Label() const {
         ops, [](auto &op) { return op->type; }, "", "", "\n");
 }
 
+void Sequence::Dump() const {
+    LOG(INFO) << FmtList(
+        ops, [](auto &op) { return op->type; }, "", "", " ");
+}
+
 std::string Group::Label() const {
     auto in = FmtList(
         inFront, [](auto &in) { return in->ops.front()->type; }, "", "", " ");
     auto out = FmtList(
         outFront, [](auto &out) { return out->ops.back()->type; }, "", "", " ");
     return in + "\n...\n" + out;
+}
+
+void Group::Dump() const {
+    LOG(INFO) << "# GROUP";
+    LOG(INFO) << "## Input frontier:";
+    for (auto &in : inFront) in->Dump();
+    LOG(INFO) << "## Output frontier:";
+    for (auto &out : outFront) out->Dump();
+    LOG(INFO) << "## Entrance:";
+    for (auto &entr : entrs) entr->Dump();
+    LOG(INFO) << "## Exit:";
+    for (auto &exit : exits) exit->Dump();
+    LOG(INFO) << "## Value consumed:";
+    for (auto &[val, cnt] : consumed) LOG(INFO) << val->name << " " << cnt;
+    LOG(INFO) << "## Value produced:";
+    for (auto &[val, cnt] : produced) LOG(INFO) << val->name << " " << cnt;
 }
 
 HierGraph::HierGraph(const Graph &graph) : graph(graph) {
@@ -45,9 +66,11 @@ HierGraph::HierGraph(const Graph &graph) : graph(graph) {
     }
 
     // Connect vertices
-    for (auto &[op, seq] : vertMap) {
-        for (auto &pred : op->preds) seq->preds.push_back(vertMap[pred.lock()]);
-        for (auto &succ : op->succs) seq->succs.push_back(vertMap[succ]);
+    for (auto &[vert, hier] : vertMap) {
+        for (auto &pred : vert->preds)
+            hier->preds.push_back(vertMap[pred.lock()]);
+        for (auto &succ : vert->succs) hier->succs.push_back(vertMap[succ]);
+        if (Is<Op>(vert)) opToSeq.insert({Cast<Op>(vert), As<Sequence>(hier)});
     }
 }
 
@@ -101,7 +124,7 @@ private:
 };
 
 void HierGraph::PlotAll(const std::string &dir, const std::string &name,
-                             const std::string &format) {
+                        const std::string &format) {
     DotCreator<VertexRef> creator(name);
     HierVizAllVisitor(creator).Plot(*this);
     creator.Render(dir, format);
@@ -136,7 +159,7 @@ private:
 };
 
 void HierGraph::PlotTop(const std::string &dir, const std::string &name,
-                             const std::string &format) {
+                        const std::string &format) {
     DotCreator<HierVertRef> creator(name);
     HierVizTopVisitor(creator).Plot(*this);
     creator.Render(dir, format);
@@ -167,7 +190,7 @@ private:
 };
 
 void HierGraph::PlotDom(const std::string &dir, const std::string &name,
-                             const std::string &format) {
+                        const std::string &format) {
     if (inputs.empty()) {
         LOG(ERROR) << "Input list of the hierarchical graph is empty.";
         return;
@@ -181,9 +204,8 @@ void HierGraph::PlotDom(const std::string &dir, const std::string &name,
     creator.Render(dir, format);
 }
 
-void HierGraph::PlotPostDom(const std::string &dir,
-                                 const std::string &name,
-                                 const std::string &format) {
+void HierGraph::PlotPostDom(const std::string &dir, const std::string &name,
+                            const std::string &format) {
     if (outputs.empty()) {
         LOG(ERROR) << "Output list of the hierarchical graph is empty.";
         return;

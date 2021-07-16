@@ -47,7 +47,7 @@ struct LifetimeStat {
     /// Lifetimes of each value
     std::vector<Lifetime> values;
 
-    SizeRange IterSize() const;
+    SizeRange SizeRange() const;
 
     void Plot(const std::string &dir, const std::string &name,
               std::optional<uint64_t> yMax = std::nullopt,
@@ -60,6 +60,12 @@ public:
         : t(t), values(values) {}
 
     std::pair<int32_t, uint64_t> operator*();
+
+    std::vector<ValueRef> AliveValues() const {
+        return Transform<std::vector<ValueRef>>(
+            alive, [this](auto *lt) { return lt->value; });
+    }
+
     void operator++() { t++; }
 
     bool operator!=(const SizeIter &other) const { return this->t != other.t; }
@@ -83,7 +89,7 @@ private:
     const LifetimeStat &stat;
 };
 
-inline SizeRange LifetimeStat::IterSize() const { return {*this}; }
+inline SizeRange LifetimeStat::SizeRange() const { return {*this}; }
 
 /// Whether the only output of this op can overlap one of the input
 uint32_t OverlapInput(const OpRef &op);

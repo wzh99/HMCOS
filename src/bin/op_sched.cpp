@@ -24,7 +24,8 @@ static void sampleSchedDistrib(const Graph &graph, size_t nSamples,
     plot.Render(dir, "pdf");
 }
 
-static void sampleLowestPeakSched(const Graph& graph, size_t nSamples, const std::string &dir) {
+static void sampleLowestPeakSched(const Graph &graph, size_t nSamples,
+                                  const std::string &dir) {
     std::mt19937 rng;
     uint64_t minPeak = UINT64_MAX;
     std::vector<OpRef> minSched;
@@ -36,6 +37,7 @@ static void sampleLowestPeakSched(const Graph& graph, size_t nSamples, const std
             minSched = sched;
         }
     }
+    ComputeLifetime(minSched, graph).Plot(dir, graph.name + "-usage");
     PlotSchedule(minSched, graph, dir, graph.name + "-min");
 }
 
@@ -63,20 +65,14 @@ int main(int argc, char const *argv[]) {
     Graph graph(model, std::filesystem::path(argv[1]).stem().string());
     model.Clear();
 
-    // Build hierarchical graph
-    HierGraph hier(graph);
-    JoinSequencePass().Run(hier);
-    MakeGroupPass(true).Run(hier);
-
     // Schedule hierarchical graph
-    auto sched = HierarchicalSchedule(hier);
+    auto sched = HierarchicalSchedule(graph);
     LOG(INFO) << EstimatePeak(sched, graph.inputs) / 1024;
     LOG(INFO) << computeArenaSize(ComputeLifetime(sched, graph)) / 1024;
     sched = ReversePostOrder(graph);
     LOG(INFO) << EstimatePeak(sched, graph.inputs) / 1024;
     LOG(INFO) << computeArenaSize(ComputeLifetime(sched, graph)) / 1024;
-    // sampleSchedDistrib(graph, 10000, argv[2]);
-    sampleLowestPeakSched(graph, 10000, argv[2]);
+    // sampleLowestPeakSched(graph, 10000, argv[2]);
 
     return 0;
 }

@@ -15,16 +15,7 @@ std::vector<OpRef> RandomSample(const Graph &graph, std::mt19937 &rng);
 /// Produce reverse post-order sequence of a computation graph
 std::vector<OpRef> ReversePostOrder(const Graph &graph);
 
-/// Brute-force search the graph to find a topological order with optimal
-/// metric.
-/// The metric should also works for a continuous subsequence of topological
-/// order. When a better sequence is found, the callback function is called.
-void BruteForceSearch(
-    const Graph &graph,
-    std::function<uint64_t(const std::vector<OpRef> &)> metric,
-    std::function<void(const std::vector<OpRef> &, uint64_t)> callback);
-
 /// Schedule ops on a hierarchical graph
-std::vector<OpRef> HierarchicalSchedule(const HierGraph &hier);
+std::vector<OpRef> HierarchicalSchedule(const Graph &graph);
 
 }  // namespace hos
