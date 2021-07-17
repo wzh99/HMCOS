@@ -252,13 +252,160 @@ static GroupRef createGroup(const std::unordered_set<SequenceRef> &set,
     return group;
 }
 
+/// Use DP to find a subset of intruded sequences which minimize size of its
+/// outputs.
+class OutputSizeOptimizer {
+public:
+    OutputSizeOptimizer(const std::unordered_set<SequenceRef> &allSeqs,
+                        const SequenceRef &root)
+        : allSeqs(allSeqs), root(root) {}
+
+    std::vector<SequenceRef> Optimize() {
+        // Build predecessor count map
+        std::unordered_map<SequenceRef, uint32_t> predCount;
+        for (auto &seq : allSeqs)
+            predCount.insert({seq, uint32_t(seq->preds.size())});
+        predCount[root] = 0;
+
+        // Begin searching all possible intrusion on the cell
+        std::vector<SequenceRef> chosen;
+        std::unordered_map<SequenceRef, uint32_t> succCount;
+        minSize = UINT64_MAX;
+        search(chosen, predCount, succCount);
+
+        return bestSet;
+    }
+
+private:
+    void search(std::vector<SequenceRef> &chosen,
+                std::unordered_map<SequenceRef, uint32_t> &predCount,
+                std::unordered_map<SequenceRef, uint32_t> &succCount) {
+        // Check if this set has been searched before
+        if (Contains(memo, chosen)) return;
+
+        // Compute size of output frontier
+        uint64_t size = 0;
+        for (auto &seq : chosen) {
+            if (succCount[seq] == 0) continue;
+            size += std::transform_reduce(
+                seq->outputs.begin(), seq->outputs.end(), 0ull, std::plus(),
+                [](const ValueRef &val) { return val->type.Size(); });
+        }
+
+        if (size != 0) {
+            memo.insert({chosen, size});
+            if (size < minSize ||
+                (size == minSize && chosen.size() > bestSet.size())) {
+                minSize = size;
+                bestSet = chosen;
+            }
+        }
+
+        // Find all zero-predecessor sequences
+        std::vector<SequenceRef> cand;
+        for (auto &[seq, count] : predCount)
+            if (count == 0) cand.push_back(seq);
+
+        // Choose one sequence and search further
+        for (auto &seq : cand) {
+            // Add to set
+            auto idx = Insert(chosen, seq);
+
+            // Update predecessor and successor count
+            predCount.erase(seq);
+            for (auto &succ : filterSeqs(seq->succs)) predCount[succ]--;
+            succCount.insert({seq, uint32_t(seq->succs.size())});
+            for (auto &pred : filterSeqs(seq->Preds())) succCount[pred]--;
+
+            // Search next sequence
+            search(chosen, predCount, succCount);
+
+            // Remove from set
+            chosen.erase(chosen.begin() + idx);
+
+            // Restore predecessor and successor count
+            predCount.insert({seq, 0});
+            for (auto &succ : filterSeqs(seq->succs)) predCount[succ]++;
+            succCount.erase(seq);
+            for (auto &pred : filterSeqs(seq->Preds())) succCount[pred]++;
+        }
+    }
+
+    std::vector<SequenceRef> filterSeqs(const std::vector<HierVertRef> &verts) {
+        std::vector<SequenceRef> seqs;
+        for (auto &v : verts) {
+            if (!Is<Sequence>(v)) continue;
+            auto seq = Cast<Sequence>(v);
+            if (!Contains(allSeqs, seq)) continue;
+            seqs.push_back(seq);
+        }
+        return seqs;
+    }
+
+    const std::unordered_set<SequenceRef> &allSeqs;
+    const SequenceRef &root;
+    std::unordered_map<std::vector<SequenceRef>, uint64_t> memo;
+    std::vector<SequenceRef> bestSet;
+    uint64_t minSize;
+};
+
 inline static void makeGroupFromCell(const SequenceRef &cellOut) {
+    // Detect input frontier of the group
     std::unordered_set<SequenceRef> seqs;
-    std::vector<SequenceRef> inFront, entrs;
-    SequenceDetector([&](auto &seq) { return cellOut->PostDominates(*seq); },
-                     std::mem_fn(&HierVertex::Preds), seqs, inFront, entrs)
+    std::vector<SequenceRef> cellInFront, cellEntrs;
+    SequenceDetector(
+        [&](const SequenceRef &seq) { return cellOut->PostDominates(*seq); },
+        std::mem_fn(&HierVertex::Preds), seqs, cellInFront, cellEntrs)
         .Visit(cellOut);
-    createGroup(seqs, inFront, {cellOut}, entrs, {cellOut});
+
+    // Detect output frontier of the group by intruding on other cells
+    std::unordered_set<SequenceRef> intruded;
+    std::vector<SequenceRef> intrOutFront, intrExits;
+    SequenceDetector(
+        [&](const SequenceRef &seq) { return cellOut->Dominates(*seq); },
+        std::mem_fn(&HierVertex::Succs), intruded, intrOutFront, intrExits)
+        .Visit(cellOut);
+
+    // Directly create group if intrusion is not possible
+    if (Contains(intrOutFront, cellOut)) {
+        createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
+        return;
+    }
+
+    // Try choosing a subset of intruded sequences that minimize their output
+    // sizes
+    auto minSizeSet = OutputSizeOptimizer(intruded, cellOut).Optimize();
+    if (minSizeSet.size() <= 2) {  // don't intrude if the subset is trivial
+        createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
+        return;
+    }
+
+    // Find output frontier and exits of intruded sequences
+    intruded.clear();
+    intrOutFront.clear();
+    intrExits.clear();
+    SequenceDetector(
+        [&](const SequenceRef &seq) { return Contains(minSizeSet, seq); },
+        std::mem_fn(&HierVertex::Succs), intruded, intrOutFront, intrExits)
+        .Visit(cellOut);
+    intruded.erase(cellOut);
+
+    // Find input frontier and entrance of intruded sequences
+    std::vector<SequenceRef> intrInFront, intrEntrs;
+    for (auto &succ : cellOut->succs) {
+        if (!Is<Sequence>(succ)) continue;
+        auto seq = Cast<Sequence>(succ);
+        intrInFront.push_back(seq);
+        if (!std::any_of(seq->preds.begin(), seq->preds.end(), [&](auto &pred) {
+                return Is<Sequence>(pred.lock()) &&
+                       Contains(intruded, Cast<Sequence>(pred.lock()));
+            }))
+            intrEntrs.push_back(seq);
+    }
+
+    // Create cell group and intruded group
+    createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
+    createGroup(intruded, intrInFront, intrOutFront, intrEntrs, intrExits);
 }
 
 void MakeGroupPass::Run(HierGraph &hier) {

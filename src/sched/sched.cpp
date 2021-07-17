@@ -408,13 +408,87 @@ static std::unordered_map<SequenceRef, std::vector<HierVertRef>>
 findEdgesToRestore(const std::vector<SequenceRef> &frontier,
                    const std::vector<HierVertRef> &neighbors,
                    const VertListFunc &getNeighborPrev,
-                   const GetSeqListFromGroupFunc &getNeighborFrontier);
+                   const GetSeqListFromGroupFunc &getNeighborFrontier) {
+    // Initialize map for all frontiers
+    std::unordered_map<SequenceRef, std::vector<HierVertRef>> restoreMap;
+    for (auto &seq : frontier) restoreMap.insert({seq, {}});
+
+    // Iterate neighbors and restore edges
+    for (auto &vert : neighbors) {
+        if (Is<Group>(vert)) {
+            // Check frontiers of this group
+            auto neighGrp = Cast<Group>(vert);
+            auto neighGrpFront = getNeighborFrontier(neighGrp);
+            for (auto &neighGrpVert : neighGrpFront) {
+                auto prevOuts = getNeighborPrev(neighGrpVert);
+                for (auto &out : prevOuts) {
+                    if (!Is<Sequence>(out)) continue;
+                    auto outSeq = Cast<Sequence>(out);
+                    if (Contains(restoreMap, outSeq))
+                        Insert(restoreMap[outSeq], vert);
+                }
+            }
+        } else {
+            auto prevOuts = getNeighborPrev(vert);
+            for (auto &out : prevOuts) {
+                if (!Is<Sequence>(out)) continue;
+                auto outSeq = Cast<Sequence>(out);
+                if (Contains(restoreMap, outSeq))
+                    restoreMap[outSeq].push_back(vert);
+            }
+        }
+    }
+
+    return restoreMap;
+}
 
 static void ungroup(const GroupRef &group) {
     // Reconnect predecessors with input frontiers
+    auto inRestore = findEdgesToRestore(group->inFront, group->Preds(),
+                                        std::mem_fn(&HierVertex::prevSuccs),
+                                        std::mem_fn(&Group::outFront));
+    for (auto &[front, restores] : inRestore) {
+        for (auto &neigbor : restores) {
+            AddUnique(front->preds, std::weak_ptr(neigbor));
+            Remove(neigbor->succs, HierVertRef(group));
+            AddUnique(neigbor->succs, HierVertRef(front));
+        }
+    }
+
+    // Reconnect successors with output frontiers
+    auto outRestore = findEdgesToRestore(
+        group->outFront, group->succs,
+        [](auto &vert) {
+            return Transform<std::vector<HierVertRef>>(
+                vert->prevPreds, [](auto &pred) { return pred.lock(); });
+        },
+        std::mem_fn(&Group::inFront));
+    for (auto &[front, restores] : outRestore) {
+        for (auto &neighbor : restores) {
+            AddUnique(front->succs, neighbor);
+            Remove(neighbor->preds, std::weak_ptr<HierVertex>(group));
+            AddUnique(neighbor->preds, std::weak_ptr<HierVertex>(front));
+        }
+    }
 
     // Remove group
     for (auto &seq : group->seqs) seq->group = {};
+}
+
+static bool tryUngroupSucc(const SequenceRef &seq) {
+    bool changed = false;
+    while (true) {
+        for (auto &succ : seq->succs) {
+            if (!succ) continue;
+            if (Is<Group>(succ)) {
+                ungroup(Cast<Group>(succ));
+                changed = true;
+                continue;
+            }
+        }
+        break;
+    }
+    return changed;
 }
 
 std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
@@ -441,26 +515,37 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
         auto sizeRange = stat.SizeRange();
         for (auto it = sizeRange.begin(); it != sizeRange.end(); ++it) {
             if ((*it).second == peak) {
-                peakValues = it.AliveValues();
-                break;
+                auto alive = it.AliveValues();
+                peakValues.insert(peakValues.end(), alive.begin(), alive.end());
             }
         }
         LOG_ASSERT(!peakValues.empty());
-
-        // Break if peak is caused by the same set of values as last time
-        if (peak == lastPeak && peakValues == lastPeakValues) break;
+        LOG(INFO) << "Peak: " << peak / 1024;
+        for (auto &val : peakValues) LOG(INFO) << val->name;
+        LOG(INFO);
 
         // Locate sequences related to this peak
         std::unordered_set<SequenceRef> relSeqs;
         for (auto &val : peakValues)
             relSeqs.insert(hier.opToSeq[val->def.lock()]);
 
-        // Ungroup sequences if they are in groups
+        // Ungroup
+        bool changed = false;
         for (auto &seq : relSeqs) {
+            // Ungroups those which contains peak sequences
             auto group = seq->group.lock();
-            if (group == nullptr) continue;
-            ungroup(group);
+            if (group != nullptr) {
+                ungroup(group);
+                changed = true;
+            }
+
+            // Ungroup successor groups of peak sequences
+            changed |= tryUngroupSucc(seq);
         }
+
+        // Break if peak is caused by the same set of values as last time and
+        // nothing more can be done to the graph
+        if (peak == lastPeak && peakValues == lastPeakValues && !changed) break;
 
         // Update record for next iteration
         lastSched = sched;
