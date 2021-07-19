@@ -1,6 +1,7 @@
 #pragma once
 
 #include <hos/sched/sched.hpp>
+#include <optional>
 
 namespace hos {
 

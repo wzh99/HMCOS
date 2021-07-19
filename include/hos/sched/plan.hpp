@@ -1,7 +1,6 @@
 #pragma once
 
 #include <hos/sched/life.hpp>
-#include <optional>
 
 namespace hos {
 
@@ -124,7 +123,7 @@ struct MemoryPlan {
     void Print() const;
     /// Plot memory plan with Matplotlib
     void Plot(const std::string &dir, const std::string &name,
-                   const std::string &format = "pdf");
+              const std::string &format = "pdf");
 };
 
 /// Implement best-fit heuristic by Sekiyama et al.
