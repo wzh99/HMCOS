@@ -502,7 +502,7 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
     // Record schedule and peak
     std::vector<OpRef> lastSched;
     uint64_t lastPeak = UINT64_MAX;
-    std::vector<ValueRef> lastPeakValues;
+    std::set<ValueRef> lastPeakValues;
 
     // Iteratively schedule hierarchical graph
     while (true) {
@@ -511,14 +511,14 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
 
         // Find peak and alive values
         auto peak = EstimatePeak(sched, graph.inputs);
-        std::vector<ValueRef> peakValues;
+        std::set<ValueRef> peakValues;
         auto sizeRange = stat.SizeRange();
         for (auto it = sizeRange.begin(); it != sizeRange.end(); ++it) {
-            if ((*it).second == peak) {
-                auto alive = it.AliveValues();
-                peakValues.insert(peakValues.end(), alive.begin(), alive.end());
-            }
+            auto size = (*it).second;
+            if (size != peak) continue;
+            for (auto &val : it.AliveValues()) peakValues.insert(val);
         }
+
         LOG_ASSERT(!peakValues.empty());
         LOG(INFO) << "Peak: " << peak / 1024;
         for (auto &val : peakValues) LOG(INFO) << val->name;

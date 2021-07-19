@@ -16,13 +16,14 @@ void LifetimeStat::Plot(const std::string &dir, const std::string &name,
 
 std::pair<int32_t, uint64_t> SizeIter::operator*() {
     while (idx < values.size() && values[idx].gen == t) {
-        alive.push_back(&values[idx]);
+        alive.push_back(idx);
         sum += values[idx].value->type.Size();
         idx++;
     }
-    RemoveIf(alive, [&](auto *block) {
-        if (block->kill == t) {
-            sum -= block->value->type.Size();
+    RemoveIf(alive, [this](size_t i) {
+        auto &block = values[i];
+        if (block.kill == t) {
+            sum -= block.value->type.Size();
             return true;
         } else
             return false;

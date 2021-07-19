@@ -64,7 +64,7 @@ public:
 
     std::vector<ValueRef> AliveValues() const {
         return Transform<std::vector<ValueRef>>(
-            alive, [this](auto *lt) { return lt->value; });
+            alive, [this](size_t i) { return values[i].value; });
     }
 
     void operator++() { t++; }
@@ -76,7 +76,7 @@ private:
     size_t idx = 0;
     uint64_t sum = 0;
     const std::vector<Lifetime> &values;
-    std::vector<const Lifetime *> alive;
+    std::vector<size_t> alive;
 };
 
 class SizeRange {
