@@ -2,11 +2,12 @@
 #include <hos/sched/mem.hpp>
 #include <hos/sched/pass.hpp>
 #include <hos/sched/sched.hpp>
+#include <hos/util/progress.hpp>
 #include <hos/util/viz.hpp>
 
 namespace hos {
 
-void PlotSchedule(const std::vector<hos::OpRef> &sched, const Graph &graph,
+void PlotSchedule(const std::vector<OpRef> &sched, const Graph &graph,
                   const std::string &dir, const std::string &name,
                   const std::string &format) {
     LOG_ASSERT(sched.size() == graph.ops.size());
@@ -331,7 +332,7 @@ public:
                       std::move(predCnt), std::move(useCnt)}});
 
         // Iterate |V| steps
-        for (auto i = 0u; i < nVert; i++) {
+        for (auto i : ProgressRange(nVert)) {
             // Iterate each partial result and build partial schedule with one
             // more vertex
             decltype(memo) newMemo;
@@ -522,7 +523,6 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
         LOG_ASSERT(!peakValues.empty());
         LOG(INFO) << "Peak: " << peak / 1024;
         for (auto &val : peakValues) LOG(INFO) << val->name;
-        LOG(INFO);
 
         // Locate sequences related to this peak
         std::unordered_set<SequenceRef> relSeqs;
