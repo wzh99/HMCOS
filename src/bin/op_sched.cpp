@@ -12,6 +12,15 @@
 using namespace hos;
 using namespace std::chrono;
 
+#define TIME_CODE(code)                                                        \
+    {                                                                          \
+        auto _begin = system_clock::now();                                     \
+        code;                                                                  \
+        auto _dur =                                                            \
+            duration_cast<milliseconds>(system_clock::now() - _begin).count(); \
+        LOG(INFO) << fmt::format("{} ms", _dur);                               \
+    }
+
 static void sampleSchedDistrib(const Graph &graph, size_t nSamples,
                                const std::string &dir) {
     std::mt19937 rng;
@@ -66,7 +75,8 @@ int main(int argc, char const *argv[]) {
     model.Clear();
 
     // Schedule hierarchical graph
-    auto sched = HierarchicalSchedule(graph);
+    std::vector<OpRef> sched;
+    TIME_CODE(sched = HierarchicalSchedule(graph);)
     LOG(INFO) << EstimatePeak(sched, graph.inputs) / 1024;
     LOG(INFO) << computeArenaSize(ComputeLifetime(sched, graph)) / 1024;
     sched = ReversePostOrder(graph);
