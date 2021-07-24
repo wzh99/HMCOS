@@ -15,7 +15,6 @@ static const auto PYTHON_PREAMBLE =
 
 static std::vector<std::pair<std::string, std::string>> rcParams{
     {"figure.figsize", "(8, 6)"},
-    {"figure.dpi", "150"},
     {"font.sans-serif", FmtStr(DEFAULT_FONT)},
 };
 
