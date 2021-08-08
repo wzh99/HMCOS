@@ -1,5 +1,6 @@
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from onnx import save_model, shape_inference
+import tensorflow
 from tensorflow.keras import backend, Model
 from tensorflow.keras.layers import *
 from enum import IntEnum, auto
@@ -30,19 +31,16 @@ class Architecture:
     def num_classes(self) -> int:
         raise NotImplementedError()
 
-    def num_init_filters(self) -> int:
-        raise NotImplementedError()
-
     def stem_cell(self, x):
         raise NotImplementedError()
 
-    def cells(self) -> List[CellKind]:
+    def cells(self, num_stacked: int) -> List[CellKind]:
         raise NotImplementedError()
 
 
-class Cifar100(Architecture):
+class Cifar(Architecture):
     def name(self) -> str:
-        return 'cifar100'
+        return 'cifar'
 
     def input_shape(self) -> Tuple[int]:
         return (3, 32, 32)
@@ -50,16 +48,13 @@ class Cifar100(Architecture):
     def num_classes(self) -> int:
         return 100
 
-    def num_init_filters(self) -> int:
-        return 32
-
     def stem_cell(self, x):
         x = Conv2D(num_stem_filters, 3, padding='same', use_bias=False)(x)
         x = BatchNormalization(axis=1)(x)
         return x
 
-    def cells(self) -> List[CellKind]:
-        normal = [CellKind.NORMAL] * 6
+    def cells(self, num_stacked: int) -> List[CellKind]:
+        normal = [CellKind.NORMAL] * num_stacked
         reduction = [CellKind.REDUCTION]
         return normal + reduction + normal + reduction + normal
 
@@ -74,17 +69,14 @@ class ImageNet(Architecture):
     def num_classes(self) -> int:
         return 1000
 
-    def num_init_filters(self) -> int:
-        return 12
-
     def stem_cell(self, x):
         x = Conv2D(num_stem_filters, 3, strides=2,
                    padding='same', use_bias=False)(x)
         x = BatchNormalization(axis=1)(x)
         return x
 
-    def cells(self) -> List[CellKind]:
-        normal = [CellKind.NORMAL] * 4
+    def cells(self, num_stacked: int) -> List[CellKind]:
+        normal = [CellKind.NORMAL] * num_stacked
         reduction = [CellKind.REDUCTION]
         return reduction * 2 + normal + reduction + normal + reduction + normal
 
@@ -112,7 +104,7 @@ class NasNetBase:
         self.name = name
         self.genotype: Optional[Genotype] = None
 
-    def build(self, arch: Architecture) -> Model:
+    def build(self, arch: Architecture, num_stacked: int, init_filters: int) -> Model:
         # Stem from inut
         inp = Input(shape=arch.input_shape(), batch_size=batch_size)
         cur = arch.stem_cell(inp)
@@ -120,8 +112,8 @@ class NasNetBase:
         # Build cells
         assert self.genotype is not None
         prev = None
-        cur_filters = arch.num_init_filters()
-        for kind in arch.cells():
+        cur_filters = init_filters
+        for kind in arch.cells(num_stacked):
             if kind == CellKind.NORMAL:
                 nxt = self._create_normal(prev, cur, cur_filters)
             else:
@@ -307,9 +299,11 @@ class Darts(NasNetBase):
         )
 
 
-def create_model(arch_ty: Type[Architecture], net_ty: Type[NasNetBase]):
+def create_model(arch_ty: Type[Architecture], net_ty: Type[NasNetBase],
+                 num_stacked: int, init_filters: int):
     arch = arch_ty()
-    net = net_ty().build(arch)
+    net = net_ty().build(arch, num_stacked, init_filters)
+    net.summary()
     input_spec = TensorSpec((batch_size,) + arch.input_shape())
     model, _ = convert.from_keras(net, [input_spec], opset=10)
     model = optimize(model, passes=['fuse_bn_into_conv'])
@@ -317,11 +311,9 @@ def create_model(arch_ty: Type[Architecture], net_ty: Type[NasNetBase]):
     save_model(model, f'model/{net.name}.onnx')
 
 
-# create_model(Cifar100, NasNet)
-# create_model(ImageNet, NasNet)
-# create_model(Cifar100, AmoebaNet)
-# create_model(ImageNet, AmoebaNet)
-# create_model(Cifar100, PNas)
-# create_model(ImageNet, PNas)
-# create_model(Cifar100, Darts)
-# create_model(ImageNet, Darts)
+# create_model(Cifar, NasNet, 6, 32)
+# create_model(ImageNet, NasNet, 4, 11)
+# create_model(Cifar, AmoebaNet, 6, 36)
+# create_model(ImageNet, AmoebaNet, 4, 12.5)
+# create_model(Cifar, Darts, 6, 36)
+# create_model(ImageNet, Darts, 4, 12)
