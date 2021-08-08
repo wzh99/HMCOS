@@ -42,12 +42,11 @@ uint32_t OverlapInput(const OpRef &op) {
     // Output of op with single input can always overlap this input
     if (op->inputs.size() == 1) return 0;
 
-    // Output of op with multiple outputs can only overlap input with same
-    // type as it
-    for (auto i = 0u; i < op->inputs.size(); i++) {
-        auto &in = op->inputs[i];
+    // The output value can only overlap the first input value with same size as
+    // it
+    for (auto [i, in] : EnumRange(op->inputs)) {
         if (in->kind == ValueKind::PARAM) continue;
-        if (in->type == out->type) return i;
+        if (in->type.Size() == out->type.Size()) return i;
     }
 
     return OVERLAP_FAILED;
