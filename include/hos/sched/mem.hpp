@@ -12,10 +12,10 @@ class MemStateVec {
 public:
     MemStateVec(int64_t init = 0) : init(init) {}
 
-    int64_t Latest() const { return stables.Empty() ? init : stables.Back(); }
+    int64_t Latest() const { return transients.Empty() ? init : transients.Back(); }
 
     int64_t Peak() const {
-        return transients.Empty() ? init : transients.Max();
+        return stables.Empty() ? init : stables.Max();
     }
 
     std::pair<int64_t, int64_t> ComputeState(uint64_t inc, uint64_t dec) const {
@@ -28,8 +28,8 @@ public:
     /// transient state and decrease when transitioned to stable state
     void Append(uint64_t inc, uint64_t dec) {
         auto [up, down] = ComputeState(inc, dec);
-        transients.Append(up);
-        stables.Append(down);
+        stables.Append(up);
+        transients.Append(down);
     }
 
     /// Extend this state vector with the other vector
@@ -39,30 +39,30 @@ public:
 
     void Swap(MemStateVec& other) {
         std::swap(this->init, other.init);
-        this->transients.Swap(other.transients);
         this->stables.Swap(other.stables);
+        this->transients.Swap(other.transients);
     }
 
     std::pair<int64_t, int64_t> operator[](size_t i) const {
         LOG_ASSERT(i < Size());
-        return {transients[i], stables[i]};
+        return {stables[i], transients[i]};
     }
 
-    size_t Size() const { return transients.Size(); }
+    size_t Size() const { return stables.Size(); }
 
     MemStateIter begin() const;
     MemStateIter end() const;
 
-    const StatVec<int64_t>& Transients() const { return transients; }
     const StatVec<int64_t>& Stables() const { return stables; }
+    const StatVec<int64_t>& Transients() const { return transients; }
 
 private:
     /// Initial memory offset
     int64_t init = 0;
-    /// Transient states, when an op is being executed
-    StatVec<int64_t> transients;
-    /// Stable states, when execution of the op has been finished
+    /// Stable states, when an op is being executed
     StatVec<int64_t> stables;
+    /// Transient states, when execution of the op has been finished
+    StatVec<int64_t> transients;
 };
 
 using I64VecConstIter = std::vector<int64_t>::const_iterator;
@@ -74,18 +74,18 @@ public:
 };
 
 inline MemStateIter MemStateVec::begin() const {
-    return {transients.begin(), stables.begin()};
+    return {stables.begin(), transients.begin()};
 }
 
 inline MemStateIter MemStateVec::end() const {
-    return {transients.end(), stables.end()};
+    return {stables.end(), transients.end()};
 }
 
 inline void MemStateVec::Extend(const MemStateVec& other) {
     auto last = Latest();
     for (auto [t, s] : other) {
-        transients.Append(t + last);
-        stables.Append(s + last);
+        stables.Append(t + last);
+        transients.Append(s + last);
     }
 }
 

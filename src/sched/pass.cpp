@@ -54,9 +54,8 @@ public:
             // Try join if next op is not element-wise
             if (!canJoinAny) break;
             auto [inc, dec] = computeIncDec(next->ops[0]);
-            auto [trans, stable] = states.ComputeState(inc, dec);
-            if (trans > states.Transients().Max() ||
-                stable > states.Stables().Max())
+            auto [s, t] = states.ComputeState(inc, dec);
+            if (s > states.Stables().Max() || t > states.Latest())
                 break;  // incurs higher footprint, stop here
             states.Append(inc, dec);
             join(cur, next);
