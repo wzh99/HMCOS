@@ -21,14 +21,6 @@ public:
     Unit VisitOutput(const HierOutputRef &output) override { return {}; }
 
     Unit VisitSequence(const SequenceRef &seq) override {
-        // Check if all predecessors of the sequence have only one successor.
-        // If so, it can be joint with any sequence which has lower transient
-        // AND stable memory footprint. Otherwise, it can only be joint with
-        // element-wise ops.
-        auto canJoinAny =
-            std::all_of(seq->preds.begin(), seq->preds.end(),
-                        [](auto &v) { return v.lock()->succs.size() == 1; });
-
         // Initialize memory states
         auto cur = seq;
         MemStateVec states;
@@ -41,18 +33,10 @@ public:
             // next has multiple predecessors
             if (cur->succs.size() != 1) break;
             if (!Is<Sequence>(cur->succs[0])) break;
-            if (cur->succs[0]->preds.size() != 1) break;
-
-            // Always join if next is an element-wise op
             auto next = Cast<Sequence>(cur->succs[0]);
-            auto &nextOp = next->ops[0];
-            if (IsElementWise(nextOp->type)) {
-                join(cur, next);
-                continue;
-            }
+            if (next->preds.size() != 1) break;
 
             // Try join if next op is not element-wise
-            if (!canJoinAny) break;
             auto [inc, dec] = computeIncDec(next->ops[0]);
             auto [s, t] = states.ComputeState(inc, dec);
             if (s > states.Stables().Max() || t > states.Latest())
@@ -77,13 +61,12 @@ private:
     }
 
     static std::pair<uint64_t, uint64_t> computeIncDec(const OpRef &op) {
-        auto inc = std::transform_reduce(
-            op->outputs.begin(), op->outputs.end(), 0ull, std::plus<uint64_t>(),
-            [](const ValueRef &val) { return val->type.Size(); });
-        auto dec = std::transform_reduce(
-            op->inputs.begin(), op->inputs.end(), 0ull, std::plus<uint64_t>(),
-            [](const ValueRef &val) { return val->type.Size(); });
-        return {inc, dec};
+        std::vector<ValueRef> killed;
+        for (auto &in : op->inputs)
+            if (std::all_of(in->uses.begin(), in->uses.end(),
+                            [&](auto &use) { return use.lock() == op; }))
+                AddUnique(killed, in);
+        return ComputeIncDec(op, killed);
     }
 
     /// Join two sequences. The joint sequence will stored in `prev`, while

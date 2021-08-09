@@ -1,5 +1,6 @@
 #pragma once
 
+#include <hos/core/graph.hpp>
 #include <hos/util/util.hpp>
 #include <hos/util/vec.hpp>
 
@@ -12,11 +13,11 @@ class MemStateVec {
 public:
     MemStateVec(int64_t init = 0) : init(init) {}
 
-    int64_t Latest() const { return transients.Empty() ? init : transients.Back(); }
-
-    int64_t Peak() const {
-        return stables.Empty() ? init : stables.Max();
+    int64_t Latest() const {
+        return transients.Empty() ? init : transients.Back();
     }
+
+    int64_t Peak() const { return stables.Empty() ? init : stables.Max(); }
 
     std::pair<int64_t, int64_t> ComputeState(uint64_t inc, uint64_t dec) const {
         auto up = Latest() + inc;
@@ -88,5 +89,9 @@ inline void MemStateVec::Extend(const MemStateVec& other) {
         transients.Append(s + last);
     }
 }
+
+/// Compute increase and decrease in memory when running an operator
+std::pair<uint64_t, uint64_t> ComputeIncDec(
+    const OpRef& op, const std::vector<ValueRef>& killed);
 
 }  // namespace hos
