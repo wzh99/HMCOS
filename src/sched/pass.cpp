@@ -348,6 +348,11 @@ private:
     uint64_t minSize;
 };
 
+bool MakeGroupPass::intrusion = true;
+
+std::function<bool(const SequenceRef &)> MakeGroupPass::isCellOut =
+    [](auto &seq) { return seq->ops.front()->type == "Concat"; };
+
 inline static void makeGroupFromCell(const SequenceRef &cellOut) {
     // Detect input frontier of the group
     std::unordered_set<SequenceRef> seqs;
@@ -365,8 +370,8 @@ inline static void makeGroupFromCell(const SequenceRef &cellOut) {
         std::mem_fn(&HierVertex::Succs), intruded, intrOutFront, intrExits)
         .Visit(cellOut);
 
-    // Directly create group if intrusion is not possible
-    if (Contains(intrOutFront, cellOut)) {
+    // Directly create group if intrusion is not required or not possible
+    if (!MakeGroupPass::intrusion || Contains(intrOutFront, cellOut)) {
         createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
         return;
     }

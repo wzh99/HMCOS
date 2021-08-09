@@ -17,11 +17,9 @@ class MakeGroupPass : public HierGraphPass {
 public:
     void Run(HierGraph &graph) override;
 
-private:
-    /// This method defines how output of a cell is identified
-    static bool isCellOut(const SequenceRef &seq) {
-        return seq->ops.front()->type == "Concat";
-    }
+    static bool intrusion;
+    
+    static std::function<bool(const SequenceRef &)> isCellOut;
 };
 
 }  // namespace hos
