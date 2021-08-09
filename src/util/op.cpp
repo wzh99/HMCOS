@@ -17,4 +17,11 @@ std::unordered_set<std::string> ewOps{
 
 bool IsElementWise(const std::string &name) { return Contains(ewOps, name); }
 
+std::unordered_set<std::string> reinterpOps{"Squeeze", "Unsqueeze", "Reshape",
+                                            "Flatten"};
+
+bool IsReinterpret(const std::string &name) {
+    return Contains(reinterpOps, name);
+}
+
 }  // namespace hos

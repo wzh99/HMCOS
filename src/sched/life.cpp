@@ -37,10 +37,8 @@ uint32_t OverlapInput(const OpRef &op) {
     auto &out = op->outputs[0];
 
     // Check if it is element-wise
-    if (!IsElementWise(op->type)) return OVERLAP_FAILED;
-
-    // Output of op with single input can always overlap this input
-    if (op->inputs.size() == 1) return 0;
+    if (!IsElementWise(op->type) && !IsReinterpret(op->type))
+        return OVERLAP_FAILED;
 
     // The output value can only overlap the first input value with same size as
     // it
