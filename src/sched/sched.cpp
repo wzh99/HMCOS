@@ -506,15 +506,15 @@ static void ungroup(const GroupRef &group) {
 static bool tryUngroupSucc(const SequenceRef &seq) {
     bool changed = false;
     while (true) {
+        bool iterChanged = false;
         for (auto &succ : seq->succs) {
-            if (!succ) continue;
             if (Is<Group>(succ)) {
                 ungroup(Cast<Group>(succ));
-                changed = true;
-                continue;
+                iterChanged = changed = true;
+                break;
             }
         }
-        break;
+        if (!iterChanged) break;
     }
     return changed;
 }
@@ -532,14 +532,14 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
     uint64_t lastPeak =
         INT64_MAX / 2;  // make sure subtracting any integer (positive
                         // or negative) from it will never overflow
-    std::set<ValueRef> lastPeakValues;
 
     // Iteratively schedule hierarchical graph
     while (true) {
         auto sched = HierScheduler(hier, lastPeak, groupMemo).Schedule();
+        LOG_ASSERT(sched.size() == graph.ops.size());
         auto stat = ComputeLifetime(sched, graph);
 
-        // Find peak and alive values
+        // Find peak and peak values
         auto peak = EstimatePeak(sched, graph.inputs);
         std::set<ValueRef> peakValues;
         auto sizeRange = stat.SizeRange();
@@ -549,6 +549,7 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
             for (auto &val : it.AliveValues()) peakValues.insert(val);
         }
 
+        // Log peak and peak values 
         LOG_ASSERT(!peakValues.empty());
         LOG(INFO) << "Peak: " << peak / 1024;
         for (auto &val : peakValues) LOG(INFO) << val->name;
@@ -574,12 +575,11 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
 
         // Break if peak is caused by the same set of values as last time and
         // nothing more can be done to the graph
-        if (peak == lastPeak && peakValues == lastPeakValues && !changed) break;
+        if (peak == lastPeak && !changed) break;
 
         // Update record for next iteration
         lastSched = sched;
         lastPeak = peak;
-        lastPeakValues = peakValues;
     }
 
     return lastSched;
