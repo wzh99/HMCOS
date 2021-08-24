@@ -38,10 +38,13 @@ static std::unordered_map<OpRef, uint32_t> initPredCount(const Graph &graph) {
     return predCnt;
 }
 
-static void extractZeroPredOp(std::unordered_map<OpRef, uint32_t> &predCnt,
-                              std::vector<OpRef> &zeroPred) {
-    for (auto &[op, cnt] : predCnt)
-        if (cnt == 0) zeroPred.push_back(op);
+/// Extract zero-indegree vertices from predecessor count map and move it to the
+/// ordered vector
+template <class VertRef>
+static void extractZeroIn(std::unordered_map<VertRef, uint32_t> &predCnt,
+                              std::vector<VertRef> &zeroPred) {
+    for (auto &[vert, cnt] : predCnt)
+        if (cnt == 0) Insert(zeroPred, vert);
     for (auto &op : zeroPred) predCnt.erase(op);
 }
 
@@ -49,14 +52,14 @@ std::vector<OpRef> RandomSample(const Graph &graph, std::mt19937 &rng) {
     std::vector<OpRef> sched;
     auto predCnt = initPredCount(graph);
     std::vector<OpRef> zeroPred;
-    extractZeroPredOp(predCnt, zeroPred);
+    extractZeroIn(predCnt, zeroPred);
     while (!zeroPred.empty()) {
         auto op = zeroPred[rng() % zeroPred.size()];
         sched.push_back(op);
         Remove(zeroPred, op);
         for (auto &succ : op->succs)
             if (Is<Op>(succ)) predCnt[As<Op>(succ)]--;
-        extractZeroPredOp(predCnt, zeroPred);
+        extractZeroIn(predCnt, zeroPred);
     }
     return sched;
 }
@@ -147,16 +150,6 @@ struct hash<hos::GroupContext> {
 }  // namespace std
 
 namespace hos {
-
-/// Extract zero-indegree vertices from predecessor count map and move it to the
-/// ordered vector
-inline static void extractZeroIn(
-    std::unordered_map<HierVertRef, uint32_t> &predCnt,
-    std::vector<HierVertRef> &zeroIn) {
-    for (auto &[vert, cnt] : predCnt)
-        if (cnt == 0) Insert(zeroIn, vert);
-    for (auto &vert : zeroIn) predCnt.erase(vert);
-}
 
 /// A sequence has only one possible schedule. This function also computes
 /// memory states of each op and update predecessor count and use count map.
