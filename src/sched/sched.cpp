@@ -30,37 +30,44 @@ void PlotSchedule(const std::vector<OpRef> &sched, const Graph &graph,
     creator.Render(dir, format);
 }
 
-static std::unordered_map<OpRef, uint32_t> initPredCount(const Graph &graph) {
-    std::unordered_map<OpRef, uint32_t> predCnt;
-    for (auto &op : graph.ops) predCnt.insert({op, uint32_t(op->preds.size())});
-    for (auto &input : graph.inputs)
-        for (auto &succ : input->succs) predCnt[As<Op>(succ)]--;
-    return predCnt;
-}
-
 /// Extract zero-indegree vertices from predecessor count map and move it to the
 /// ordered vector
 template <class VertRef>
 static void extractZeroIn(std::unordered_map<VertRef, uint32_t> &predCnt,
-                              std::vector<VertRef> &zeroPred) {
+                          std::vector<VertRef> &zeroPred) {
     for (auto &[vert, cnt] : predCnt)
         if (cnt == 0) Insert(zeroPred, vert);
     for (auto &op : zeroPred) predCnt.erase(op);
 }
 
+template <class Vert>
+static std::shared_ptr<Vert> sampleVertex(
+    std::unordered_map<std::shared_ptr<Vert>, uint32_t> &predCnt,
+    std::vector<std::shared_ptr<Vert>> &zeroPred, std::mt19937 &rng) {
+    auto vert = zeroPred[rng() % zeroPred.size()];
+    Remove(zeroPred, vert);
+    for (auto &succ : vert->succs)
+        if (Is<Vert>(succ)) predCnt[As<Vert>(succ)]--;
+    extractZeroIn(predCnt, zeroPred);
+    return vert;
+}
+
 std::vector<OpRef> RandomSample(const Graph &graph, std::mt19937 &rng) {
-    std::vector<OpRef> sched;
-    auto predCnt = initPredCount(graph);
+    // Initialize predecessor count map
+    std::unordered_map<OpRef, uint32_t> predCnt;
+    for (auto &op : graph.ops) predCnt.insert({op, uint32_t(op->preds.size())});
+    for (auto &input : graph.inputs)
+        for (auto &succ : input->succs) predCnt[As<Op>(succ)]--;
+
+    // Initialize zero predecessor set
     std::vector<OpRef> zeroPred;
     extractZeroIn(predCnt, zeroPred);
-    while (!zeroPred.empty()) {
-        auto op = zeroPred[rng() % zeroPred.size()];
-        sched.push_back(op);
-        Remove(zeroPred, op);
-        for (auto &succ : op->succs)
-            if (Is<Op>(succ)) predCnt[As<Op>(succ)]--;
-        extractZeroIn(predCnt, zeroPred);
-    }
+
+    // Sample one schedule
+    std::vector<OpRef> sched;
+    while (!zeroPred.empty())
+        sched.push_back(sampleVertex(predCnt, zeroPred, rng));
+
     return sched;
 }
 
@@ -83,6 +90,11 @@ struct SchedResult {
 
     SchedResult(std::vector<OpRef> &&seq, MemStateVec &&states)
         : valid(true), seq(std::move(seq)), states(std::move(states)) {}
+
+    void Extend(const SchedResult &other) {
+        hos::Extend(this->seq, other.seq);
+        this->states.Extend(other.states);
+    }
 
     void Print() const {
         for (auto [op, state] : ZipRange(seq, states))
@@ -191,9 +203,7 @@ static SchedResult scheduleGroupRpo(
     const GroupRef &group, std::unordered_map<ValueRef, uint32_t> &useCnt,
     int64_t budget) {
     // Initialize vertex range
-    VertRange<HierVertex, RpoIter<HierVertex>> vertRange(
-        Transform<std::vector<HierVertRef>>(
-            group->exits, [](auto &exit) { return HierVertRef(exit); }));
+    auto vertRange = group->Range();
 
     // Schedule each sequence in reverse post-order
     std::vector<OpRef> opSeq;
@@ -243,6 +253,7 @@ static void updateResult(
 }
 
 /// Use DP algorithm to schedule the group
+template <bool displayProgress>
 static SchedResult scheduleGroupDp(
     const GroupRef &group, const std::unordered_map<ValueRef, uint32_t> &useCnt,
     int64_t budget) {
@@ -261,7 +272,7 @@ static SchedResult scheduleGroupDp(
 
     // Iterate |V| steps
     auto nVert = group->seqs.size();
-    for (auto i = 0u; i < nVert; i++) {
+    for (auto i : ProgressRange<displayProgress>(nVert)) {
         decltype(memo) newMemo;
         for (const auto &[zeroIn, result] : memo) {
             // Add another vertex to the schedule
@@ -399,7 +410,8 @@ private:
                 }
 
                 // Schedule group using DP and memoize the result
-                auto dpResult = scheduleGroupDp(group, useCnt, localBudget);
+                auto dpResult =
+                    scheduleGroupDp<false>(group, useCnt, localBudget);
                 if (!dpResult.valid) return {};
                 updateGroupUseCount(group, useCnt);
                 groupMemo.insert({ctx, dpResult});
@@ -512,6 +524,10 @@ static bool tryUngroupSucc(const SequenceRef &seq) {
     return changed;
 }
 
+// Make sure subtracting any integer (positive or negative) not so big from it
+// will never overflow.
+static constexpr auto MAX_BUDGET = INT64_MAX / 2;
+
 std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
     // Build hierarchical graph
     HierGraph hier(graph);
@@ -522,9 +538,7 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
 
     // Record schedule and peak
     std::vector<OpRef> lastSched;
-    uint64_t lastPeak =
-        INT64_MAX / 2;  // make sure subtracting any integer (positive
-                        // or negative) from it will never overflow
+    uint64_t lastPeak = MAX_BUDGET;
 
     // Iteratively schedule hierarchical graph
     while (true) {
@@ -542,7 +556,7 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
             for (auto &val : it.AliveValues()) peakValues.insert(val);
         }
 
-        // Log peak and peak values 
+        // Log peak and peak values
         LOG_ASSERT(!peakValues.empty());
         LOG(INFO) << "Peak: " << peak / 1024;
         for (auto &val : peakValues) LOG(INFO) << val->name;
@@ -576,6 +590,104 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
     }
 
     return lastSched;
+}
+
+static int64_t sampleGroupPeak(const GroupRef &group,
+                               std::unordered_map<ValueRef, uint32_t> useCnt,
+                               std::mt19937 &rng) {
+    // Initialize predecessor count map
+    std::unordered_map<SequenceRef, uint32_t> predCnt;
+    for (auto &seq : group->seqs)
+        predCnt.insert({seq, uint32_t(seq->preds.size())});
+
+    // Initialize zero indegree set
+    std::vector<SequenceRef> zeroIn;
+    extractZeroIn(predCnt, zeroIn);
+
+    // Sample one schedule
+    std::vector<OpRef> sched;
+    MemStateVec states;
+    while (!predCnt.empty()) {
+        auto seq = sampleVertex(predCnt, zeroIn, rng);
+        auto result = scheduleSequence(seq, useCnt, MAX_BUDGET);
+        Extend(sched, result.seq);
+        states.Extend(result.states);
+    }
+
+    return states.Peak();
+}
+
+std::vector<OpRef> SerenitySchedule(const Graph &graph, bool joinOps,
+                                    bool trySimple, size_t nSamples) {
+    // Create hierarchical graph
+    HierGraph hier(graph);
+    if (joinOps) RunPass<JoinSequencePass>(hier);
+    RunPass<MakeGroupPass>(hier);
+
+    // Collect all graph level vertices
+    std::vector<HierVertRef> topVerts;
+    for (auto vert : RpoHierRange(hier)) topVerts.push_back(std::move(vert));
+
+    // Schedule each graph level vertex
+    std::vector<OpRef> sched;
+    MemStateVec states;
+    std::unordered_map<ValueRef, uint32_t> useCnt;
+    for (auto [i, vert] : EnumRange(topVerts)) {
+        // Schedule vertex depending on its kind
+        LOG(INFO) << fmt::format("Scheduling vertex {}/{}", i + 1,
+                                 topVerts.size());
+        switch (vert->Kind()) {
+            case HierKind::INPUT: {
+                auto input = Cast<HierInput>(vert);
+                useCnt.insert({input->value, input->value->uses.size()});
+                states = MemStateVec(input->value->type.Size());
+                break;
+            }
+
+            case HierKind::OUTPUT:
+                break;
+
+            case HierKind::SEQUENCE: {
+                auto seq = Cast<Sequence>(vert);
+                auto result = scheduleSequence(seq, useCnt, MAX_BUDGET);
+                Extend(sched, result.seq);
+                states.Extend(result.states);
+                break;
+            }
+
+            case HierKind::GROUP: {
+                auto group = Cast<Group>(vert);
+
+                // Try simple scheduling
+                if (trySimple) {
+                    auto rpoUseCnt = useCnt;
+                    auto rpoResult = scheduleGroupRpo(
+                        group, rpoUseCnt, states.Peak() - states.Latest());
+                    if (rpoResult.valid) {
+                        useCnt.swap(rpoUseCnt);
+                        Extend(sched, rpoResult.seq);
+                        states.Extend(rpoResult.states);
+                        continue;
+                    }
+                }
+
+                // Sample budget for this group
+                auto budget = MAX_BUDGET;
+                std::mt19937 rng;
+                LOG(INFO) << "Sampling budget.";
+                for (auto _ : ProgressRange<true>(nSamples))
+                    budget = std::min(budget, sampleGroupPeak(group, useCnt, rng));
+
+                // Schedule group with sampled budget
+                LOG(INFO) << fmt::format("Scheduling group with budget {} KB.", budget / 1024);
+                auto result = scheduleGroupDp<true>(group, useCnt, budget);
+                Extend(sched, result.seq);
+                states.Extend(result.states);
+            }
+        }
+    }
+
+    return sched;
 }
 
 }  // namespace hos

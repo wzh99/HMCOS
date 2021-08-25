@@ -141,6 +141,12 @@ struct Group : public HierVertex {
         return Is<Vert>(vert) && this->Contains(Cast<Vert>(vert));
     }
 
+    auto Range() const {
+        return VertRange<HierVertex, RpoIter<HierVertex>>(
+            Transform<std::vector<HierVertRef>>(
+                exits, [](auto &exit) { return HierVertRef(exit); }));
+    }
+
     static constexpr auto classKind = HierKind::GROUP;
     HierKind Kind() const override { return classKind; }
 };

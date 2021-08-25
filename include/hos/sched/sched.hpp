@@ -15,7 +15,11 @@ std::vector<OpRef> RandomSample(const Graph &graph, std::mt19937 &rng);
 /// Produce reverse post-order sequence of a computation graph
 std::vector<OpRef> ReversePostOrder(const Graph &graph);
 
-/// Schedule ops on a hierarchical graph
+/// Use iterative hierarchical scheduling algorithm of HOS
 std::vector<OpRef> HierarchicalSchedule(const Graph &graph);
+
+/// Serenity-style scheduling for networks with sequentially-connected cells
+std::vector<OpRef> SerenitySchedule(const Graph &graph, bool joinOps,
+                                    bool trySimple, size_t nSamples);
 
 }  // namespace hos
