@@ -561,6 +561,12 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
         LOG(INFO) << "Peak: " << peak / 1024;
         for (auto &val : peakValues) LOG(INFO) << val->name;
 
+        // Update peak and schedule
+        if (peak < lastPeak) {
+            lastPeak = peak;
+            lastSched = sched;
+        }
+
         // Locate sequences related to this peak
         std::unordered_set<SequenceRef> relSeqs;
         for (auto &val : peakValues)
@@ -580,13 +586,8 @@ std::vector<OpRef> HierarchicalSchedule(const Graph &graph) {
             changed |= tryUngroupSucc(seq);
         }
 
-        // Break if peak is caused by the same set of values as last time and
-        // nothing more can be done to the graph
-        if (peak == lastPeak && !changed) break;
-
-        // Update record for next iteration
-        lastSched = sched;
-        lastPeak = peak;
+        // Break if nothing more can be done to the graph
+        if (!changed) break;
     }
 
     return lastSched;
@@ -674,7 +675,7 @@ std::vector<OpRef> SerenitySchedule(const Graph &graph, bool joinOps,
                 // Sample budget for this group
                 auto budget = MAX_BUDGET;
                 std::mt19937 rng;
-                LOG(INFO) << "Sampling budget.";
+                LOG(INFO) << "Sampling schedules.";
                 for (auto _ : ProgressRange<true>(nSamples))
                     budget = std::min(budget, sampleGroupPeak(group, useCnt, rng));
 
