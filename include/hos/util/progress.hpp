@@ -17,7 +17,8 @@ public:
     ProgressIter(size_t index, size_t size) : index(index), size(size) {}
 
     void operator++() {
-        if constexpr (display) PrintProgress(++index, size, start);
+        index++;
+        if constexpr (display) PrintProgress(index, size, start);
     }
 
     size_t operator*() const { return index; }
