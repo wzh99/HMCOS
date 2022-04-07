@@ -4,11 +4,11 @@
 
 #include <filesystem>
 #include <fstream>
-#include <hos/util/fmt.hpp>
-#include <hos/util/writer.hpp>
+#include <hmcos/util/fmt.hpp>
+#include <hmcos/util/writer.hpp>
 #include <unordered_map>
 
-namespace hos {
+namespace hmcos {
 
 #if defined(WIN32)
 #define DEFAULT_FONT "Segoe UI"
@@ -251,4 +251,4 @@ private:
     std::vector<float> data;
 };
 
-}  // namespace hos
+}  // namespace hmcos

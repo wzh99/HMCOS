@@ -1,9 +1,9 @@
 #pragma once
 
-#include <hos/core/dom.hpp>
-#include <hos/core/graph.hpp>
+#include <hmcos/core/dom.hpp>
+#include <hmcos/core/graph.hpp>
 
-namespace hos {
+namespace hmcos {
 
 enum class HierKind {
     INPUT,
@@ -96,7 +96,7 @@ struct Sequence : public HierVertex {
     std::string Label() const override;
     void Dump() const;
 
-    bool Contains(const OpRef &op) const { return hos::Contains(ops, op); }
+    bool Contains(const OpRef &op) const { return hmcos::Contains(ops, op); }
 
     static constexpr auto classKind = HierKind::SEQUENCE;
     HierKind Kind() const override { return classKind; }
@@ -244,4 +244,4 @@ inline void RunPass(HierGraph &graph) {
     (void)std::initializer_list<int>{0, (Passes().Run(graph), 0)...};
 }
 
-}  // namespace hos
+}  // namespace hmcos

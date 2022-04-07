@@ -1,8 +1,8 @@
 #pragma once
 
-#include <hos/sched/life.hpp>
+#include <hmcos/sched/life.hpp>
 
-namespace hos {
+namespace hmcos {
 
 /// Spatial-temporal descriptor of a value in memory
 struct MemoryDesc : public Lifetime {
@@ -129,4 +129,4 @@ struct MemoryPlan {
 /// Implement best-fit heuristic by Sekiyama et al.
 MemoryPlan BestFit(const LifetimeStat &stat);
 
-};  // namespace hos
+};  // namespace hmcos

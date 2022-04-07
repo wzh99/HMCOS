@@ -1,7 +1,7 @@
-#include <hos/core/hier.hpp>
-#include <hos/util/viz.hpp>
+#include <hmcos/core/hier.hpp>
+#include <hmcos/util/viz.hpp>
 
-namespace hos {
+namespace hmcos {
 
 Sequence::Sequence(const OpRef &op)
     : ops{op},
@@ -219,4 +219,4 @@ void HierGraph::PlotPostDom(const std::string &dir, const std::string &name,
     creator.Render(dir, format);
 }
 
-}  // namespace hos
+}  // namespace hmcos

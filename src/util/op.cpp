@@ -1,6 +1,6 @@
-#include <hos/util/op.hpp>
+#include <hmcos/util/op.hpp>
 
-namespace hos {
+namespace hmcos {
 
 std::unordered_set<std::string> ewOps{
     "Abs",        "Add",   "And",   "Neg",         "Mul",
@@ -24,4 +24,4 @@ bool IsReinterpret(const std::string &name) {
     return Contains(reinterpOps, name);
 }
 
-}  // namespace hos
+}  // namespace hmcos

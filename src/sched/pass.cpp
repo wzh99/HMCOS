@@ -1,9 +1,9 @@
-#include <hos/sched/mem.hpp>
-#include <hos/sched/pass.hpp>
-#include <hos/util/fmt.hpp>
-#include <hos/util/op.hpp>
+#include <hmcos/sched/mem.hpp>
+#include <hmcos/sched/pass.hpp>
+#include <hmcos/util/fmt.hpp>
+#include <hmcos/util/op.hpp>
 
-namespace hos {
+namespace hmcos {
 
 class JoinVisitor : public HierVertVisitor<Unit> {
 public:
@@ -331,7 +331,7 @@ private:
     uint64_t minSize;
 };
 
-bool MakeGroupPass::intrusion = true;
+bool MakeGroupPass::makeCell = true;
 
 std::function<bool(const SequenceRef &)> MakeGroupPass::isCellOut =
     [](auto &seq) { return seq->ops.front()->type == "Concat"; };
@@ -353,8 +353,8 @@ inline static void makeGroupFromCell(const SequenceRef &cellOut) {
         std::mem_fn(&HierVertex::Succs), intruded, intrOutFront, intrExits)
         .Visit(cellOut);
 
-    // Directly create group if intrusion is not required or not possible
-    if (!MakeGroupPass::intrusion || Contains(intrOutFront, cellOut)) {
+    // Directly create group if making cells is not required or not possible
+    if (!MakeGroupPass::makeCell || Contains(intrOutFront, cellOut)) {
         createGroup(seqs, cellInFront, {cellOut}, cellEntrs, {cellOut});
         return;
     }
@@ -437,4 +437,4 @@ void MakeGroupPass::Run(HierGraph &hier) {
     }
 }
 
-}  // namespace hos
+}  // namespace hmcos

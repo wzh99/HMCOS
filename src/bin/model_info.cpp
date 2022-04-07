@@ -4,10 +4,10 @@
 #include <onnx/shape_inference/implementation.h>
 
 #include <fstream>
-#include <hos/util/fmt.hpp>
+#include <hmcos/util/fmt.hpp>
 #include <stdexcept>
 
-using namespace hos;
+using namespace hmcos;
 
 int main(int argc, char *argv[]) {
     // Init logging

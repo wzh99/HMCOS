@@ -1,0 +1,4 @@
+tensorflow==2.4
+onnx==1.9
+onnxoptimizer==0.2.6
+tf2onnx==1.9.1

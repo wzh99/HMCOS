@@ -1,10 +1,10 @@
 #pragma once
 
-#include <hos/core/graph.hpp>
-#include <hos/util/util.hpp>
-#include <hos/util/vec.hpp>
+#include <hmcos/core/graph.hpp>
+#include <hmcos/util/util.hpp>
+#include <hmcos/util/vec.hpp>
 
-namespace hos {
+namespace hmcos {
 
 class MemStateIter;
 
@@ -94,4 +94,4 @@ inline void MemStateVec::Extend(const MemStateVec& other) {
 std::pair<uint64_t, uint64_t> ComputeIncDec(
     const OpRef& op, const std::vector<ValueRef>& killed);
 
-}  // namespace hos
+}  // namespace hmcos

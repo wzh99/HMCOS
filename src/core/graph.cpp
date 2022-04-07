@@ -1,9 +1,9 @@
-#include <hos/core/graph.hpp>
-#include <hos/util/fmt.hpp>
-#include <hos/util/viz.hpp>
+#include <hmcos/core/graph.hpp>
+#include <hmcos/util/fmt.hpp>
+#include <hmcos/util/viz.hpp>
 #include <unordered_map>
 
-namespace hos {
+namespace hmcos {
 
 Graph::Graph(const onnx::ModelProto &model, const std::string &name) {
     // Create name of this graph
@@ -252,4 +252,4 @@ void Graph::Plot(const std::string &dir, const std::string &format) const {
     creator.Render(dir, format);
 }
 
-}  // namespace hos
+}  // namespace hmcos

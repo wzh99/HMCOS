@@ -3,7 +3,7 @@
 #include <limits>
 #include <vector>
 
-namespace hos {
+namespace hmcos {
 
 /// Compute statistics with the vector
 template <class Elem>
@@ -40,4 +40,4 @@ private:
     Elem max = std::numeric_limits<Elem>::min();
 };
 
-}  // namespace hos
+}  // namespace hmcos

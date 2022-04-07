@@ -12,7 +12,7 @@
 #include <variant>
 #include <vector>
 
-namespace hos {
+namespace hmcos {
 
 /// Type definition
 
@@ -216,7 +216,7 @@ inline size_t Hash(const Args &...args) {
     return HashCombine(0ull, args...);
 }
 
-}  // namespace hos
+}  // namespace hmcos
 
 namespace std {
 
@@ -224,7 +224,7 @@ template <class Elem>
 struct hash<std::vector<Elem>> {
     std::size_t operator()(const std::vector<Elem> &vec) const {
         auto seed = vec.size();
-        for (auto &elem : vec) seed = hos::HashCombine(seed, elem);
+        for (auto &elem : vec) seed = hmcos::HashCombine(seed, elem);
         return seed;
     }
 };

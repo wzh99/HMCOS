@@ -1,11 +1,11 @@
-#include <hos/sched/life.hpp>
-#include <hos/sched/mem.hpp>
-#include <hos/sched/pass.hpp>
-#include <hos/sched/sched.hpp>
-#include <hos/util/progress.hpp>
-#include <hos/util/viz.hpp>
+#include <hmcos/sched/life.hpp>
+#include <hmcos/sched/mem.hpp>
+#include <hmcos/sched/pass.hpp>
+#include <hmcos/sched/sched.hpp>
+#include <hmcos/util/progress.hpp>
+#include <hmcos/util/viz.hpp>
 
-namespace hos {
+namespace hmcos {
 
 void PlotSchedule(const std::vector<OpRef> &sched, const Graph &graph,
                   const std::string &dir, const std::string &name,
@@ -92,7 +92,7 @@ struct SchedResult {
         : valid(true), seq(std::move(seq)), states(std::move(states)) {}
 
     void Extend(const SchedResult &other) {
-        hos::Extend(this->seq, other.seq);
+        hmcos::Extend(this->seq, other.seq);
         this->states.Extend(other.states);
     }
 
@@ -148,20 +148,20 @@ struct GroupContext {
     }
 };
 
-}  // namespace hos
+}  // namespace hmcos
 
 namespace std {
 
 template <>
-struct hash<hos::GroupContext> {
-    size_t operator()(const hos::GroupContext &ctx) const {
-        return hos::Hash(ctx.group, ctx.kill);
+struct hash<hmcos::GroupContext> {
+    size_t operator()(const hmcos::GroupContext &ctx) const {
+        return hmcos::Hash(ctx.group, ctx.kill);
     }
 };
 
 }  // namespace std
 
-namespace hos {
+namespace hmcos {
 
 /// A sequence has only one possible schedule. This function also computes
 /// memory states of each op and update predecessor count and use count map.
@@ -691,4 +691,4 @@ std::vector<OpRef> SerenitySchedule(const Graph &graph, bool joinOps,
     return sched;
 }
 
-}  // namespace hos
+}  // namespace hmcos

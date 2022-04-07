@@ -1,8 +1,8 @@
-#include <hos/sched/life.hpp>
-#include <hos/util/op.hpp>
-#include <hos/util/viz.hpp>
+#include <hmcos/sched/life.hpp>
+#include <hmcos/util/op.hpp>
+#include <hmcos/util/viz.hpp>
 
-namespace hos {
+namespace hmcos {
 
 void LifetimeStat::Plot(const std::string &dir, const std::string &name,
                         std::optional<uint64_t> yMax,
@@ -161,4 +161,4 @@ uint64_t EstimatePeak(const std::vector<OpRef> &seq,
     return peak;
 }
 
-}  // namespace hos
+}  // namespace hmcos

@@ -3,9 +3,9 @@
 #include <fmt/core.h>
 #include <onnx/onnx_pb.h>
 
-#include <hos/util/util.hpp>
+#include <hmcos/util/util.hpp>
 
-namespace hos {
+namespace hmcos {
 
 using I64Repeated = google::protobuf::RepeatedField<int64_t>;
 
@@ -55,4 +55,4 @@ inline std::string FmtTensorType(const onnx::TypeProto_Tensor &type) {
 
 std::string FmtAttrValue(const onnx::AttributeProto &attr);
 
-}  // namespace hos
+}  // namespace hmcos

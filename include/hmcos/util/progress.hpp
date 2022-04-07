@@ -4,7 +4,7 @@
 
 #include <chrono>
 
-namespace hos {
+namespace hmcos {
 
 void PrintProgress(size_t index, size_t size,
                    std::chrono::system_clock::time_point start);
@@ -51,4 +51,4 @@ private:
     size_t size;
 };
 
-}  // namespace hos
+}  // namespace hmcos

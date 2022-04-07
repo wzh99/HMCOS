@@ -1,8 +1,8 @@
 #include <fmt/chrono.h>
 
-#include <hos/util/progress.hpp>
+#include <hmcos/util/progress.hpp>
 
-namespace hos {
+namespace hmcos {
 
 static constexpr auto BAR_LENGTH = 50u;
 
@@ -29,4 +29,4 @@ void PrintProgress(size_t index, size_t size, system_clock::time_point start) {
     fflush(stdout);
 }
 
-}  // namespace hos
+}  // namespace hmcos

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <hos/core/hier.hpp>
+#include <hmcos/core/hier.hpp>
 #include <random>
 
-namespace hos {
+namespace hmcos {
 
 void PlotSchedule(const std::vector<OpRef> &sched, const Graph &graph,
                   const std::string &dir, const std::string &name,
@@ -15,11 +15,11 @@ std::vector<OpRef> RandomSample(const Graph &graph, std::mt19937 &rng);
 /// Produce reverse post-order sequence of a computation graph
 std::vector<OpRef> ReversePostOrder(const Graph &graph);
 
-/// Use iterative hierarchical scheduling algorithm of HOS
+/// Use iterative hierarchical scheduling algorithm of HMCOS
 std::vector<OpRef> HierarchicalSchedule(const Graph &graph);
 
 /// Serenity-style scheduling for networks with sequentially-connected cells
 std::vector<OpRef> SerenitySchedule(const Graph &graph, bool joinOps,
                                     bool trySimple, size_t nSamples);
 
-}  // namespace hos
+}  // namespace hmcos

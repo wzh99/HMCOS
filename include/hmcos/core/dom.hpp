@@ -1,8 +1,8 @@
 #pragma once
 
-#include <hos/core/vertex.hpp>
+#include <hmcos/core/vertex.hpp>
 
-namespace hos {
+namespace hmcos {
 
 /// Node in dominator tree
 template <class Vert>
@@ -246,4 +246,4 @@ void DomBuilder<Vert>::link(uint32_t v, uint32_t w) {
     }
 }
 
-}  // namespace hos
+}  // namespace hmcos

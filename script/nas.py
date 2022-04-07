@@ -1,14 +1,13 @@
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type
-from onnx import save_model, shape_inference
-import tensorflow
-from tensorflow.keras import backend, Model
-from tensorflow.keras.layers import *
-from enum import IntEnum, auto
 from collections import namedtuple
-from tf2onnx import convert
-from tensorflow import TensorSpec
-from onnxoptimizer import optimize
+from enum import IntEnum, auto
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
+from onnx import save_model, shape_inference
+from onnxoptimizer import optimize
+from tensorflow import TensorSpec
+from tensorflow.keras import Model, backend
+from tensorflow.keras.layers import *
+from tf2onnx import convert
 
 batch_size = 1
 num_stem_filters = 32

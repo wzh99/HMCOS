@@ -3,7 +3,7 @@
 #include <fmt/core.h>
 #include <glog/logging.h>
 
-namespace hos {
+namespace hmcos {
 
 /// In this project we adopt LLVM-style RTTI.
 /// The base class should define its own kind enum class and abstract
@@ -30,4 +30,4 @@ inline std::shared_ptr<Derived> As(const std::shared_ptr<Base> &ptr) {
         return Cast<Derived>(ptr);
 }
 
-}  // namespace hos
+}  // namespace hmcos

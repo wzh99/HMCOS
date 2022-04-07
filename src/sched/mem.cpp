@@ -1,7 +1,7 @@
-#include <hos/sched/life.hpp>
-#include <hos/sched/mem.hpp>
+#include <hmcos/sched/life.hpp>
+#include <hmcos/sched/mem.hpp>
 
-namespace hos {
+namespace hmcos {
 
 std::pair<uint64_t, uint64_t> ComputeIncDec(
     const OpRef &op, const std::vector<ValueRef> &killed) {
@@ -30,4 +30,4 @@ std::pair<uint64_t, uint64_t> ComputeIncDec(
     return {inc, dec};
 }
 
-}  // namespace hos
+}  // namespace hmcos

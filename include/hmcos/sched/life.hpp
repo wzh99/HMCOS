@@ -1,9 +1,9 @@
 #pragma once
 
-#include <hos/sched/sched.hpp>
+#include <hmcos/sched/sched.hpp>
 #include <optional>
 
-namespace hos {
+namespace hmcos {
 
 /// Lifetime descriptor of a value during computation
 struct Lifetime {
@@ -105,4 +105,4 @@ LifetimeStat ComputeLifetime(const std::vector<OpRef> &opSeq,
 uint64_t EstimatePeak(const std::vector<OpRef> &seq,
                       const std::vector<InputRef> &inputs);
 
-}  // namespace hos
+}  // namespace hmcos

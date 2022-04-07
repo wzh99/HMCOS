@@ -1,7 +1,7 @@
-#include <hos/util/fmt.hpp>
-#include <hos/util/viz.hpp>
+#include <hmcos/util/fmt.hpp>
+#include <hmcos/util/viz.hpp>
 
-namespace hos {
+namespace hmcos {
 
 #if defined(WIN32)
 #define PYTHON_CMD "python"
@@ -81,4 +81,4 @@ void HistoPlot::writeMain(CodeWriter &writer) const {
     writer.WriteLn("plt.hist(a, 50)");
 }
 
-}  // namespace hos
+}  // namespace hmcos

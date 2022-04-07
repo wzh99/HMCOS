@@ -2,10 +2,10 @@
 
 #include <onnx/onnx_pb.h>
 
-#include <hos/util/rtti.hpp>
-#include <hos/util/util.hpp>
+#include <hmcos/util/rtti.hpp>
+#include <hmcos/util/util.hpp>
 
-namespace hos {
+namespace hmcos {
 
 /// Consistent with `TensorProto_DataType` in <onnx/onnx_pb.h>
 enum DataType {
@@ -99,4 +99,4 @@ struct Value {
 
 using ValueRef = std::shared_ptr<Value>;
 
-}  // namespace hos
+}  // namespace hmcos

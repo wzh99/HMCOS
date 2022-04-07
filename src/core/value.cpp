@@ -1,8 +1,8 @@
-#include <hos/core/graph.hpp>
-#include <hos/core/value.hpp>
-#include <hos/util/fmt.hpp>
+#include <hmcos/core/graph.hpp>
+#include <hmcos/core/value.hpp>
+#include <hmcos/util/fmt.hpp>
 
-namespace hos {
+namespace hmcos {
 
 TensorType TensorType::FromTensor(const onnx::TensorProto &tensor) {
     auto &dims = tensor.dims();
@@ -128,4 +128,4 @@ VertexRef Value::Vertex() const {
         LOG(FATAL) << "Parameter value does not have corresponding vertex.";
 }
 
-}  // namespace hos
+}  // namespace hmcos

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 
-namespace hos {
+namespace hmcos {
 
 class CodeWriter {
 public:

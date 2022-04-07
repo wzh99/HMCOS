@@ -1,11 +1,12 @@
 from typing import List, NamedTuple
+
 import numpy as np
+import onnx
 import tensorflow as tf
-from tensorflow.keras import backend, Model
+from onnxoptimizer import optimize
+from tensorflow.keras import Model, backend
 from tensorflow.keras.layers import *
 from tf2onnx import convert
-from onnxoptimizer import optimize
-import onnx
 
 backend.set_image_data_format('channels_first')
 
@@ -109,7 +110,7 @@ def create_onnx():
     model, _ = convert.from_keras(net, [input_spec])
     model = optimize(model, passes=['fuse_bn_into_conv'])
     model = onnx.shape_inference.infer_shapes(model, check_type=True)
-    onnx.save_model(model, f'model/randwire.onnx')
+    onnx.save_model(model, f'model/randwire3.onnx')
 
 
 create_onnx()

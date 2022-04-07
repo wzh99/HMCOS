@@ -1,9 +1,9 @@
 #include <filesystem>
 #include <fstream>
-#include <hos/sched/plan.hpp>
-#include <hos/util/viz.hpp>
+#include <hmcos/sched/plan.hpp>
+#include <hmcos/util/viz.hpp>
 
-namespace hos {
+namespace hmcos {
 
 uint64_t Container::Place(int32_t begin, int32_t width, uint64_t height) {
     // Find the step at `begin`
@@ -179,4 +179,4 @@ MemoryPlan BestFit(const LifetimeStat &stat) {
     return MemoryPlan(cont.GetMaxHeight(), std::move(placed));
 }
 
-}  // namespace hos
+}  // namespace hmcos

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <hos/core/value.hpp>
-#include <hos/core/vertex.hpp>
-#include <hos/util/util.hpp>
+#include <hmcos/core/value.hpp>
+#include <hmcos/core/vertex.hpp>
+#include <hmcos/util/util.hpp>
 
-namespace hos {
+namespace hmcos {
 
 enum class VertexKind {
     INPUT,
@@ -164,4 +164,4 @@ protected:
     std::unordered_map<ValueRef, ValueRef> valueMap;
 };
 
-}  // namespace hos
+}  // namespace hmcos

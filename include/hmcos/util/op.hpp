@@ -1,8 +1,8 @@
 #pragma once
 
-#include <hos/util/util.hpp>
+#include <hmcos/util/util.hpp>
 
-namespace hos {
+namespace hmcos {
 
 bool IsElementWise(const std::string &name);
 

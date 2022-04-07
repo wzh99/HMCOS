@@ -1,8 +1,8 @@
 #pragma once
 
-#include <hos/util/util.hpp>
+#include <hmcos/util/util.hpp>
 
-namespace hos {
+namespace hmcos {
 template <class Vert>
 struct VertexBase {
     using VertRef = std::shared_ptr<Vert>;
@@ -221,4 +221,4 @@ private:
     std::vector<VertRef> init;
 };
 
-}  // namespace hos
+}  // namespace hmcos
