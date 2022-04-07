@@ -17,7 +17,7 @@ To run HMCOS, a C++17-compatible compiler and the following C++ libraries are re
 
 To support graph visualization features in HMCOS, [Graphviz](https://graphviz.org/) is also required.
 
-To generate ONNX models with python scripts, some Python packages are required. Run `pip install -r requirements.txt` to install them. 
+To generate ONNX models with [Python scripts](script), some Python packages are required. Run `pip install -r requirements.txt` to install them. 
 
 ## Usage
 
