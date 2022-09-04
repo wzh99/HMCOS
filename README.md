@@ -31,4 +31,4 @@ Check [op_sched.cpp](src/bin/op_sched.cpp) for sample usage of HMCOS API.
 
 ## Citation
 
-Zihan Wang, Chengcheng Wan, Yuting Chen, Ziyi Lin, He Jiang, and Lei Qiao. 2022. Hierarchical Memory-Constrained Operator Scheduling of Neural Architecture Search Networks. In Proceedings of the 59th ACM/IEEE Design Automation Conference (DAC) (DAC ’22), July 10–14, 2022, San Francisco, CA, USA. ACM, New York, NY, USA, 6 pages. https://doi.org/10.1145/3489517.35304721
+Zihan Wang, Chengcheng Wan, Yuting Chen, Ziyi Lin, He Jiang, and Lei Qiao. 2022. Hierarchical Memory-Constrained Operator Scheduling of Neural Architecture Search Networks. In Proceedings of the 59th ACM/IEEE Design Automation Conference (DAC) (DAC ’22), July 10–14, 2022, San Francisco, CA, USA. ACM, New York, NY, USA, 6 pages. https://doi.org/10.1145/3489517.3530472
